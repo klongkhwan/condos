@@ -1,15 +1,4 @@
 import { supabaseAdmin } from "./supabase";
-import type {
-  User,
-  Condo,
-  Tenant,
-  RentPayment,
-  IncomeRecord,
-  ExpenseRecord,
-  TenantHistory,
-  Document,
-  Notification,
-} from "./supabase";
 import archiver from "archiver";
 import { Readable, PassThrough } from "stream";
 import nodemailer from "nodemailer";
@@ -35,6 +24,7 @@ const TABLES = [
   "tenant_history",
   "documents",
   "notifications",
+  "personal_finances",
 ];
 
 export interface BackupResult {

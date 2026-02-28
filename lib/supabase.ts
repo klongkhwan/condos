@@ -143,6 +143,16 @@ export interface Document {
   created_at: string
 }
 
+export interface PersonalFinanceRecord {
+  id: string
+  user_id: string
+  type: "income" | "expense"
+  amount: number
+  date: string
+  description?: string
+  created_at: string
+}
+
 // New notification summary types
 export type NotificationType = "rent_due" | "rent_overdue" | "contract_expiring" | "maintenance" | "payment_received" | "condo_payment_due" | "system_alert"
 export type NotificationPriority = "high" | "medium" | "low"

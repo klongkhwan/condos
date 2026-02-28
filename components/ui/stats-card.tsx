@@ -15,6 +15,7 @@ interface StatsCardProps {
   iconColor?: 'green' | 'red' | 'yellow' | 'blue' | 'purple'
   tooltip?: string
   className?: string
+  valueClassName?: string
   loading?: boolean
 }
 
@@ -34,6 +35,7 @@ export function StatsCard({
   iconColor = 'green',
   tooltip,
   className = "", 
+  valueClassName = "text-white",
   loading = false 
 }: StatsCardProps) {
   const [showTooltip, setShowTooltip] = useState(false)
@@ -60,7 +62,7 @@ export function StatsCard({
               <div className="h-6 sm:h-8 w-24 sm:w-32 bg-gray-700 animate-pulse rounded"></div>
             </div>
           ) : (
-            <p className="text-xl sm:text-2xl font-bold text-white mt-1 truncate">{value}</p>
+            <p className={`text-xl sm:text-2xl font-bold mt-1 truncate ${valueClassName}`}>{value}</p>
           )}
           {trend && !loading && (
             <p className={`text-xs sm:text-sm mt-1 ${trend.isPositive ? "text-green-500" : "text-red-500"}`}>

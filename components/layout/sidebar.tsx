@@ -2,7 +2,7 @@
 import Link from "next/link"
 import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation"
-import { Home, Building2, Users, CreditCard, TrendingUp, FileText, Bell, Settings, LogOut, History, Loader2, ChevronsLeft, ChevronsRight, Menu, X } from "lucide-react"
+import { Home, Building2, Users, CreditCard, TrendingUp, FileText, Bell, Settings, LogOut, History, Loader2, ChevronsLeft, ChevronsRight, Menu, X, Wallet } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { cn } from "@/lib/utils"
 
@@ -18,7 +18,8 @@ const navigation = [
   { name: "ผู้เช่า", href: "/tenants", icon: Users },
   { name: "ประวัติผู้เช่า", href: "/tenant-history", icon: History },
   { name: "จัดการค่าเช่า", href: "/rent", icon: CreditCard },
-  { name: "การเงิน", href: "/financials", icon: TrendingUp },
+  { name: "การเงิน (คอนโด)", href: "/financials", icon: TrendingUp },
+  { name: "การเงินส่วนตัว", href: "/personal-finance", icon: Wallet },
   { name: "รายงาน", href: "/reports", icon: FileText },
   { name: "การแจ้งเตือน", href: "/notifications", icon: Bell },
 ]

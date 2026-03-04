@@ -51,6 +51,7 @@ export default function PersonalFinancePage() {
   // Copy confirm states
   const [isCopyConfirmOpen, setIsCopyConfirmOpen] = useState(false);
   const [isCopying, setIsCopying] = useState(false);
+  const [copySourceMonth, setCopySourceMonth] = useState<string>("");
 
   const [formData, setFormData] = useState({
     type: "expense" as "income" | "expense",
@@ -94,25 +95,25 @@ export default function PersonalFinancePage() {
   };
 
   const handleCopyMonth = () => {
+    if (selectedMonth) {
+      const [yearStr, monthStr] = selectedMonth.split('-');
+      let pYear = parseInt(yearStr);
+      let pMonth = parseInt(monthStr) - 1;
+      if (pMonth === 0) {
+        pMonth = 12;
+        pYear -= 1;
+      }
+      setCopySourceMonth(`${pYear}-${String(pMonth).padStart(2, '0')}`);
+    }
     setIsCopyConfirmOpen(true);
   };
 
   const confirmCopyMonth = async () => {
-    if (!selectedMonth) return;
+    if (!selectedMonth || !copySourceMonth) return;
     setIsCopying(true);
 
-    // Calculate previous month string
-    const [yearStr, monthStr] = selectedMonth.split('-');
-    let pYear = parseInt(yearStr);
-    let pMonth = parseInt(monthStr) - 1;
-    if (pMonth === 0) {
-      pMonth = 12;
-      pYear -= 1;
-    }
-    const previousMonth = `${pYear}-${String(pMonth).padStart(2, '0')}`;
-
     try {
-      const result = await copyPersonalFinancesFromMonthAction(previousMonth, selectedMonth, user?.id || "");
+      const result = await copyPersonalFinancesFromMonthAction(copySourceMonth, selectedMonth, user?.id || "");
       if (result.success) {
         setNotification({ message: `คัดลอกข้อมูลเรียบร้อย ${result.count} รายการ`, type: "success" });
         refetch();
@@ -356,11 +357,11 @@ export default function PersonalFinancePage() {
               
               <button
                  onClick={handleCopyMonth}
-                 title="คัดลอกข้อมูลจากเดือนก่อนหน้ามายังเดือนปัจจุบัน"
+                 title="คัดลอกข้อมูลจากเดือนอื่นมายังเดือนปัจจุบัน"
                  className="w-full justify-center items-center flex px-3 py-2 sm:px-4 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors border border-gray-700 text-sm shadow-sm"
               >
                  <Copy className="h-4 w-4 mr-1 sm:mr-2 text-gray-400" />
-                 <span>คัดลอกข้อมูลเดือนก่อนหน้า</span>
+                 <span>คัดลอกข้อมูลจากเดือนอื่น</span>
               </button>
             </div>
 
@@ -639,17 +640,47 @@ export default function PersonalFinancePage() {
         type="danger"
       />
 
-       {/* Copy Confirmation */}
-       <ConfirmationModal
+       {/* Copy Modal */}
+      <Modal
         isOpen={isCopyConfirmOpen}
         onClose={() => setIsCopyConfirmOpen(false)}
-        onConfirm={confirmCopyMonth}
-        title="ยืนยันการคัดลอกข้อมูล"
-        message="คุณต้องการคัดลอกข้อมูลรายรับ/รายจ่าย ทั้งหมดจากเดือนก่อนหน้ามาใส่ในเดือนปัจจุบันใช่หรือไม่?"
-        confirmText={isCopying ? "กำลังคัดลอก..." : "ยืนยันคัดลอก"}
-        cancelText="ยกเลิก"
-        type="info"
-      />
+        title="คัดลอกข้อมูลจากเดือนอื่น"
+      >
+        <div className="space-y-4">
+          <div className="bg-blue-600/10 border border-blue-500/20 rounded-lg p-4 text-blue-400 text-sm">
+            คุณต้องการคัดลอกข้อมูลรายรับ/รายจ่าย ทั้งหมดจากเดือนที่เลือก มาใส่ในเดือน <strong>{formatMonthTh(selectedMonth)}</strong> ใช่หรือไม่?
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1.5">
+              เลือกเดือนต้นทาง
+            </label>
+            <input
+              type="month"
+              value={copySourceMonth}
+              onChange={(e) => setCopySourceMonth(e.target.value)}
+              className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 transition-colors"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button
+              type="button"
+              onClick={() => setIsCopyConfirmOpen(false)}
+              className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors font-medium"
+            >
+              ยกเลิก
+            </button>
+            <button
+              onClick={confirmCopyMonth}
+              disabled={isCopying || !copySourceMonth}
+              className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg transition-colors font-medium flex justify-center items-center"
+            >
+              {isCopying ? "กำลังคัดลอก..." : "ยืนยันคัดลอก"}
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Yearly Report Modal */}
       <Modal

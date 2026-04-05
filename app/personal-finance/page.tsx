@@ -46,7 +46,7 @@ export default function PersonalFinancePage() {
   
   // Delete confirm states
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
-  const [recordToDelete, setRecordToDelete] = useState<string | null>(null);
+  const [recordToDelete, setRecordToDelete] = useState<PersonalFinanceRecord | null>(null);
 
   // Copy confirm states
   const [isCopyConfirmOpen, setIsCopyConfirmOpen] = useState(false);
@@ -246,8 +246,8 @@ export default function PersonalFinancePage() {
     }
   };
 
-  const handleDeleteClick = (id: string) => {
-    setRecordToDelete(id);
+  const handleDeleteClick = (record: PersonalFinanceRecord) => {
+    setRecordToDelete(record);
     setIsDeleteConfirmOpen(true);
   };
 
@@ -255,7 +255,7 @@ export default function PersonalFinancePage() {
     if (!recordToDelete) return;
     
     try {
-      const result = await deletePersonalFinanceAction(recordToDelete);
+      const result = await deletePersonalFinanceAction(recordToDelete.id);
       if (result.success) {
         setNotification({ message: "ลบข้อมูลสำเร็จ", type: "success" });
         refetch();
@@ -448,7 +448,7 @@ export default function PersonalFinancePage() {
                         <td className="px-3 py-3 whitespace-nowrap text-center">
                            <div className="flex justify-center space-x-1">
                               <button onClick={() => openModal(record)} className="text-blue-400 hover:text-blue-300 p-1.5 hover:bg-blue-400/10 rounded-md transition-colors" title="แก้ไข"><Edit className="h-3.5 w-3.5" /></button>
-                              <button onClick={() => handleDeleteClick(record.id)} className="text-red-400 hover:text-red-300 p-1.5 hover:bg-red-400/10 rounded-md transition-colors" title="ลบ"><X className="h-3.5 w-3.5" /></button>
+                              <button onClick={() => handleDeleteClick(record)} className="text-red-400 hover:text-red-300 p-1.5 hover:bg-red-400/10 rounded-md transition-colors" title="ลบ"><X className="h-3.5 w-3.5" /></button>
                            </div>
                         </td>
                       </tr>
@@ -513,7 +513,7 @@ export default function PersonalFinancePage() {
                         <td className="px-3 py-3 whitespace-nowrap text-center">
                            <div className="flex justify-center space-x-1">
                               <button onClick={() => openModal(record)} className="text-blue-400 hover:text-blue-300 p-1.5 hover:bg-blue-400/10 rounded-md transition-colors" title="แก้ไข"><Edit className="h-3.5 w-3.5" /></button>
-                              <button onClick={() => handleDeleteClick(record.id)} className="text-red-400 hover:text-red-300 p-1.5 hover:bg-red-400/10 rounded-md transition-colors" title="ลบ"><X className="h-3.5 w-3.5" /></button>
+                              <button onClick={() => handleDeleteClick(record)} className="text-red-400 hover:text-red-300 p-1.5 hover:bg-red-400/10 rounded-md transition-colors" title="ลบ"><X className="h-3.5 w-3.5" /></button>
                            </div>
                         </td>
                       </tr>
@@ -634,7 +634,13 @@ export default function PersonalFinancePage() {
         onClose={() => setIsDeleteConfirmOpen(false)}
         onConfirm={confirmDelete}
         title="ยืนยันการลบรายการ"
-        message="คุณต้องการลบรายการนี้ใช่หรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้"
+        message={
+          <>
+            คุณต้องการลบรายการ <strong>{recordToDelete?.description || "ไม่มีรายละเอียด"}</strong> ใช่หรือไม่?
+            <br />
+            การกระทำนี้ไม่สามารถย้อนกลับได้
+          </>
+        }
         confirmText="ลบ"
         cancelText="ยกเลิก"
         type="danger"

@@ -3,21 +3,6 @@ import type { User, Condo, Tenant, RentPayment, IncomeRecord, ExpenseRecord, Ten
 
 // User functions
 export const userService = {
-  async authenticate(username: string, password: string): Promise<User | null> {const { data, error } = await supabase
-    .from("users")
-    .select("*")
-    .eq("username", username)
-    .single();
-
-  if (error || !data) return null;
-
-  if (data.password === password) {
-    return data;
-  }
-
-  return null;
-  },
-
   async getById(id: string): Promise<User | null> {
     const { data, error } = await supabase.from("users").select("*").eq("id", id).single()
 

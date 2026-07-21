@@ -7,6 +7,7 @@ import { Modal } from "@/components/ui/modal"
 import { Notification } from "@/components/ui/notification"
 import { Button } from "@/components/ui/button"
 import { updateUserProfile } from "@/app/actions/user-actions"
+import { supabase } from "@/lib/supabase/client"
 import type { User as UserType } from "@/lib/supabase"
 
 
@@ -19,7 +20,6 @@ interface ProfileSettingsModalProps {
 
 export function ProfileSettingsModal({ isOpen, onClose, currentUser, onUpdateSuccess }: ProfileSettingsModalProps) {
   const [fullName, setFullName] = useState(currentUser?.full_name || "")
-  const [oldPassword, setOldPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmNewPassword, setConfirmNewPassword] = useState("")
   const [profilePicture, setProfilePicture] = useState<File | null>(null)
@@ -58,11 +58,18 @@ export function ProfileSettingsModal({ isOpen, onClose, currentUser, onUpdateSuc
       return
     }
 
+    if (newPassword) {
+      const { error: passwordError } = await supabase.auth.updateUser({ password: newPassword })
+      if (passwordError) {
+        setNotification({ message: `เปลี่ยนรหัสผ่านไม่สำเร็จ: ${passwordError.message}`, type: "error" })
+        setLoading(false)
+        return
+      }
+    }
+
     const formData = new FormData()
     formData.append("userId", currentUser?.id || "")
     formData.append("full_name", fullName)
-    if (oldPassword) formData.append("old_password", oldPassword) // For future validation
-    if (newPassword) formData.append("new_password", newPassword)
     if (profilePicture) formData.append("profile_picture", profilePicture)
 
     try {
@@ -71,7 +78,6 @@ export function ProfileSettingsModal({ isOpen, onClose, currentUser, onUpdateSuc
         setNotification({ message: result.message, type: "success" })
         onUpdateSuccess() // Trigger refetch in AuthContext
         // Clear password fields after successful update
-        setOldPassword("")
         setNewPassword("")
         setConfirmNewPassword("")
         setProfilePicture(null) // Clear file input
@@ -149,18 +155,6 @@ export function ProfileSettingsModal({ isOpen, onClose, currentUser, onUpdateSuc
             <Lock className="h-5 w-5 mr-2 text-gray-400" />
             เปลี่ยนรหัสผ่าน
           </h3>
-          <div>
-            <label htmlFor="old_password" className="block text-sm font-medium text-gray-300 mb-1">
-              รหัสผ่านปัจจุบัน (ไม่บังคับ)
-            </label>
-            <input
-              id="old_password"
-              type="password"
-              value={oldPassword}
-              onChange={(e) => setOldPassword(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-green-500"
-            />
-          </div>
           <div>
             <label htmlFor="new_password" className="block text-sm font-medium text-gray-300 mb-1">
               รหัสผ่านใหม่

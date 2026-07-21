@@ -1,6 +1,6 @@
 "use server";
 
-import { supabaseServer } from "@/lib/supabase-server";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
 export type ActionResult = {
@@ -17,6 +17,7 @@ export async function createPersonalFinanceAction(data: {
   description?: string;
 }): Promise<ActionResult> {
   try {
+    const supabaseServer = await createSupabaseServerClient();
     const { data: record, error } = await supabaseServer
       .from("personal_finances")
       .insert([data])
@@ -43,6 +44,7 @@ export async function updatePersonalFinanceAction(
   }
 ): Promise<ActionResult> {
   try {
+    const supabaseServer = await createSupabaseServerClient();
     const { data: record, error } = await supabaseServer
       .from("personal_finances")
       .update(data)
@@ -62,6 +64,7 @@ export async function updatePersonalFinanceAction(
 
 export async function deletePersonalFinanceAction(id: string): Promise<ActionResult> {
   try {
+    const supabaseServer = await createSupabaseServerClient();
     const { error } = await supabaseServer
       .from("personal_finances")
       .delete()
@@ -89,6 +92,7 @@ export async function copyPersonalFinancesFromMonthAction(
     const lastDayOfSourceMonth = new Date(parseInt(year), parseInt(month), 0).getDate();
     const sourceEndDate = `${sourceMonth}-${lastDayOfSourceMonth}`;
 
+    const supabaseServer = await createSupabaseServerClient();
     const { data: sourceRecords, error: fetchError } = await supabaseServer
       .from("personal_finances")
       .select("*")
@@ -144,6 +148,7 @@ export async function getYearlyPersonalFinanceSummaryAction(
     const startDate = `${year}-01-01`;
     const endDate = `${year}-12-31`;
 
+    const supabaseServer = await createSupabaseServerClient();
     const { data: records, error } = await supabaseServer
       .from("personal_finances")
       .select("amount, type, date")
@@ -186,6 +191,7 @@ export async function getAvailablePersonalFinanceYearsAction(
     // Note: Supabase doesn't have a direct SELECT DISTINCT for a generated column via standard API.
     // The easiest robust way is to select dates and extract years in JS, 
     // or use a custom RPC if data is huge. Since personal finance data is usually small:
+    const supabaseServer = await createSupabaseServerClient();
     const { data: records, error } = await supabaseServer
       .from("personal_finances")
       .select("date")

@@ -1,6 +1,6 @@
 "use server";
 
-import { supabaseServer } from "@/lib/supabase-server";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
 export type ActionResult = {
@@ -12,6 +12,7 @@ export type ActionResult = {
 export async function createCondoAction(condoData: any): Promise<ActionResult> {
   try {
     console.log("[Server Action] Creating condo:", condoData);
+    const supabaseServer = await createSupabaseServerClient();
 
     const { data, error } = await supabaseServer
       .from("condos")
@@ -35,6 +36,7 @@ export async function createCondoAction(condoData: any): Promise<ActionResult> {
 export async function updateCondoAction(id: string, updates: any): Promise<ActionResult> {
   try {
     console.log("[Server Action] Updating condo:", id, updates);
+    const supabaseServer = await createSupabaseServerClient();
 
     const { data, error } = await supabaseServer
       .from("condos")
@@ -59,6 +61,7 @@ export async function updateCondoAction(id: string, updates: any): Promise<Actio
 export async function deleteCondoAction(id: string): Promise<ActionResult> {
   try {
     console.log("[Server Action] Deleting (soft) condo:", id);
+    const supabaseServer = await createSupabaseServerClient();
 
     // Soft delete: set is_active to false
     const { error } = await supabaseServer

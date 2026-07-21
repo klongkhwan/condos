@@ -14,8 +14,6 @@ interface UpdateProfileResult {
 export async function updateUserProfile(formData: FormData): Promise<UpdateProfileResult> {
   const userId = formData.get("userId") as string
   const fullName = formData.get("full_name") as string
-  const oldPassword = formData.get("old_password") as string
-  const newPassword = formData.get("new_password") as string
   const profilePictureFile = formData.get("profile_picture") as File | null
 
   if (!supabaseAdmin) {
@@ -27,21 +25,6 @@ export async function updateUserProfile(formData: FormData): Promise<UpdateProfi
 
   try {
     const updates: Partial<User> = { full_name: fullName }
-    let passwordHashToUpdate: string | undefined
-
-    // Handle password update
-    if (newPassword) {
-      // In a real application, you would verify the old password against the stored hash
-      // and then hash the new password before storing it.
-      // For this demo, we're simplifying by just updating if newPassword is provided.
-      // If using Supabase Auth, you'd use `supabase.auth.updateUser({ password: newPassword })`
-      // which handles hashing automatically. Since we're directly updating the 'users' table
-      // for demo purposes, we'd need a hashing library like bcrypt here.
-      // For now, we'll just pass the new password as is, assuming the 'password_hash' column
-      // is meant to store a plain text password for this simplified demo.
-      // IMPORTANT: DO NOT DO THIS IN PRODUCTION. ALWAYS HASH PASSWORDS.
-      passwordHashToUpdate = newPassword // Placeholder for actual hashing
-    }
 
     // Handle profile picture upload
     if (profilePictureFile && profilePictureFile.size > 0) {
@@ -68,11 +51,9 @@ export async function updateUserProfile(formData: FormData): Promise<UpdateProfi
       updates.profile_picture_url = publicUrlData.publicUrl
     }
 
-    // Update user in database
-    const updatedUser = await userService.update(userId, {
-      ...updates,
-      password: passwordHashToUpdate, // Pass the (unhashed for demo) password
-    })
+    // Update user in database (password changes go through
+    // supabase.auth.updateUser on the client — Supabase Auth owns credentials now)
+    const updatedUser = await userService.update(userId, updates)
 
     if (!updatedUser) {
       return { success: false, message: "Failed to update user profile in database." }

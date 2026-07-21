@@ -1,6 +1,6 @@
 "use server"
 
-import { supabaseServer } from "@/lib/supabase-server"
+import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { v4 as uuidv4 } from "uuid"
 
 interface UploadDocumentResult {
@@ -14,6 +14,7 @@ const isUuid = (v: string | null) =>
   !!v && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v)
 
 export async function uploadDocument(formData: FormData): Promise<UploadDocumentResult> {
+  const supabaseServer = await createSupabaseServerClient()
   const file = formData.get("file") as File | null
 
   const paymentId = (formData.get("paymentId") as string | null) || null
@@ -119,6 +120,7 @@ export async function uploadDocument(formData: FormData): Promise<UploadDocument
 }
 
 export async function deleteDocumentAction(documentId: string, fileUrl: string): Promise<UploadDocumentResult> {
+  const supabaseServer = await createSupabaseServerClient()
   try {
     const marker = "/public/documents/"
     const i = fileUrl.indexOf(marker)

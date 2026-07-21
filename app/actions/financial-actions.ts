@@ -1,6 +1,6 @@
 "use server";
 
-import { supabaseServer } from "@/lib/supabase-server";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
 export type ActionResult = {
@@ -15,6 +15,7 @@ export async function createIncomeAction(incomeData: any): Promise<ActionResult>
   try {
     console.log("[Server Action] Creating income:", incomeData);
 
+    const supabaseServer = await createSupabaseServerClient();
     const { data, error } = await supabaseServer
       .from("income_records")
       .insert([incomeData])
@@ -39,6 +40,7 @@ export async function updateIncomeAction(id: string, updates: any): Promise<Acti
   try {
     console.log("[Server Action] Updating income:", id, updates);
 
+    const supabaseServer = await createSupabaseServerClient();
     const { data, error } = await supabaseServer
       .from("income_records")
       .update({ ...updates, updated_at: new Date().toISOString() })
@@ -63,6 +65,7 @@ export async function updateIncomeAction(id: string, updates: any): Promise<Acti
 export async function deleteIncomeAction(id: string): Promise<ActionResult> {
   try {
     console.log("[Server Action] Deleting income:", id);
+    const supabaseServer = await createSupabaseServerClient();
 
     const { error } = await supabaseServer
       .from("income_records")
@@ -89,6 +92,7 @@ export async function createExpenseAction(expenseData: any): Promise<ActionResul
   try {
     console.log("[Server Action] Creating expense:", expenseData);
 
+    const supabaseServer = await createSupabaseServerClient();
     const { data, error } = await supabaseServer
       .from("expense_records")
       .insert([expenseData])
@@ -113,6 +117,7 @@ export async function updateExpenseAction(id: string, updates: any): Promise<Act
   try {
     console.log("[Server Action] Updating expense:", id, updates);
 
+    const supabaseServer = await createSupabaseServerClient();
     const { data, error } = await supabaseServer
       .from("expense_records")
       .update({ ...updates, updated_at: new Date().toISOString() })
@@ -137,6 +142,7 @@ export async function updateExpenseAction(id: string, updates: any): Promise<Act
 export async function deleteExpenseAction(id: string): Promise<ActionResult> {
   try {
     console.log("[Server Action] Deleting expense:", id);
+    const supabaseServer = await createSupabaseServerClient();
 
     const { error } = await supabaseServer
       .from("expense_records")

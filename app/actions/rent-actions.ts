@@ -1,6 +1,6 @@
 "use server";
 
-import { supabaseServer } from "@/lib/supabase-server";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
 export type ActionResult = {
@@ -12,6 +12,7 @@ export type ActionResult = {
 export async function createPaymentAction(paymentData: any): Promise<ActionResult> {
   try {
     console.log("[Server Action] Creating payment:", paymentData);
+    const supabaseServer = await createSupabaseServerClient();
 
     const { data, error } = await supabaseServer
       .from("rent_payments")
@@ -35,6 +36,7 @@ export async function createPaymentAction(paymentData: any): Promise<ActionResul
 export async function updatePaymentAction(id: string, updates: any): Promise<ActionResult> {
   try {
     console.log("[Server Action] Updating payment:", id, updates);
+    const supabaseServer = await createSupabaseServerClient();
 
     const { data, error } = await supabaseServer
       .from("rent_payments")
@@ -59,6 +61,7 @@ export async function updatePaymentAction(id: string, updates: any): Promise<Act
 export async function deletePaymentAction(id: string): Promise<ActionResult> {
   try {
     console.log("[Server Action] Deleting payment:", id);
+    const supabaseServer = await createSupabaseServerClient();
 
     const { error } = await supabaseServer
       .from("rent_payments")

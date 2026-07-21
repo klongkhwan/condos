@@ -3,16 +3,18 @@
 import type React from "react"
 import { createContext, useContext, useState, useEffect, useCallback } from "react"
 import type { User } from "./supabase"
+import { supabase } from "./supabase/client"
 import { userService } from "./database"
 import { useRouter } from "next/navigation"
 
 interface AuthContextType {
   user: User | null
-  login: (username: string, password: string) => Promise<boolean>
+  login: (email: string, password: string) => Promise<{ success: boolean; message?: string }>
+  signup: (email: string, password: string, fullName: string) => Promise<{ success: boolean; message?: string }>
   logout: () => Promise<void>
   isLoading: boolean
   refetchUser: () => Promise<void>
-  setUser: React.Dispatch<React.SetStateAction<User | null>> // เพิ่ม setUser เพื่อให้สามารถอัปเดตจากภายนอกได้
+  setUser: React.Dispatch<React.SetStateAction<User | null>>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -22,94 +24,85 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
 
-  const syncAuthCookie = useCallback((token: string | null) => {
-    if (token) {
-      document.cookie = `tmp-auth-token=${token}; path=/; max-age=${60 * 60 * 24}` // 1 day
-    } else {
-      document.cookie = 'tmp-auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
-    }
+  const loadProfile = useCallback(async (authUserId: string) => {
+    const profile = await userService.getById(authUserId)
+    setUser(profile)
   }, [])
 
   const refetchUser = useCallback(async () => {
-    const savedUserId = localStorage.getItem("condo-user-id")
-    if (savedUserId) {
-      setIsLoading(true)
-      try {
-        const userData = await userService.getById(savedUserId)
-        if (userData) {
-          setUser(userData)
-          syncAuthCookie(savedUserId)
-        } else {
-          await handleLogout()
-        }
-      } catch (error) {
-        console.error("Failed to refetch user:", error)
-        await handleLogout()
-      } finally {
-        setIsLoading(false)
-      }
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser()
+    if (authUser) {
+      await loadProfile(authUser.id)
+    } else {
+      setUser(null)
     }
-  }, [syncAuthCookie])
-
-  const handleLogout = useCallback(async () => {
-    setUser(null)
-    localStorage.removeItem("condo-user-id")
-    syncAuthCookie(null)
-    router.push('/login')
-  }, [router, syncAuthCookie])
+  }, [loadProfile])
 
   useEffect(() => {
-    const initializeAuth = async () => {
-      const savedUserId = localStorage.getItem("condo-user-id")
-      if (savedUserId) {
-        try {
-          const userData = await userService.getById(savedUserId)
-          if (userData) {
-            setUser(userData)
-            syncAuthCookie(savedUserId)
-          } else {
-            await handleLogout()
-          }
-        } catch (error) {
-          console.error("Initial auth check error:", error)
-          await handleLogout()
-        }
+    let mounted = true
+
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!mounted) return
+      if (session?.user) {
+        await loadProfile(session.user.id)
       }
       setIsLoading(false)
-    }
+    })
 
-    initializeAuth()
-  }, [handleLogout, syncAuthCookie])
-
-  const login = async (username: string, password: string): Promise<boolean> => {
-    try {
-      const foundUser = await userService.authenticate(username, password)
-      if (foundUser) {
-        setUser(foundUser)
-        localStorage.setItem("condo-user-id", foundUser.id)
-        syncAuthCookie(foundUser.id)
-        return true
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user) {
+        await loadProfile(session.user.id)
+      } else {
+        setUser(null)
       }
-      return false
-    } catch (error) {
-      console.error("Login error:", error)
-      return false
+    })
+
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
     }
+  }, [loadProfile])
+
+  const login = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) {
+      return { success: false, message: error.message }
+    }
+    return { success: true }
+  }
+
+  const signup = async (email: string, password: string, fullName: string) => {
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: fullName } },
+    })
+    if (error) {
+      return { success: false, message: error.message }
+    }
+    return { success: true }
   }
 
   const logout = async () => {
-    await handleLogout()
+    await supabase.auth.signOut()
+    setUser(null)
+    router.push("/login")
   }
 
   return (
-    <AuthContext.Provider 
-      value={{ 
-        user, 
-        login, 
-        logout, 
+    <AuthContext.Provider
+      value={{
+        user,
+        login,
+        signup,
+        logout,
         isLoading,
         refetchUser,
-        setUser // เผยแพร่ setUser ผ่าน context
+        setUser,
       }}
     >
       {children}

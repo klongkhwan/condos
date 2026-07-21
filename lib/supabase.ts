@@ -10,7 +10,10 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Session-aware browser client (carries the Supabase Auth session so
+// auth.uid() resolves correctly for RLS). Re-exported here so existing
+// "@/lib/supabase" imports keep working.
+export { supabase } from "./supabase/client";
 
 // Only create admin client if service role key exists (for server-side usage)
 export const supabaseAdmin = serviceRoleKey
@@ -28,7 +31,6 @@ export interface User {
   username: string
   full_name: string
   email?: string
-  password?: string;
   phone?: string
   created_at: string
   profile_picture_url?: string

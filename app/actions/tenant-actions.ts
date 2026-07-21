@@ -1,6 +1,6 @@
 "use server";
 
-import { supabaseServer } from "@/lib/supabase-server";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
 export type ActionResult = {
@@ -12,6 +12,7 @@ export type ActionResult = {
 export async function createTenantAction(tenantData: any): Promise<ActionResult> {
   try {
     console.log("[Server Action] Creating tenant:", tenantData);
+    const supabaseServer = await createSupabaseServerClient();
 
     const { data, error } = await supabaseServer
       .from("tenants")
@@ -35,6 +36,7 @@ export async function createTenantAction(tenantData: any): Promise<ActionResult>
 export async function updateTenantAction(id: string, updates: any): Promise<ActionResult> {
   try {
     console.log("[Server Action] Updating tenant:", id, updates);
+    const supabaseServer = await createSupabaseServerClient();
 
     const { data, error } = await supabaseServer
       .from("tenants")
@@ -67,6 +69,7 @@ export async function endTenantContractAction(
 ): Promise<ActionResult> {
   try {
     console.log("[Server Action] Ending contract for tenant:", tenantId, endData);
+    const supabaseServer = await createSupabaseServerClient();
 
     // 1. Create History Record
     const { error: historyError } = await supabaseServer

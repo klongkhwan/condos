@@ -1,65 +1,52 @@
-// middleware.ts
-import { NextResponse } from "next/server"
-import type { NextRequest } from "next/server"
+// proxy.ts (Next.js 16 renamed "middleware" to "proxy")
+import { createServerClient } from "@supabase/ssr"
+import { NextResponse, type NextRequest } from "next/server"
 
-// ระบุ paths ที่ต้องการให้ middleware ทำงาน
-const protectedPaths = [
-  '/dashboard',
-  '/condos',
-  '/tenants',
-  // เพิ่ม paths ที่ต้องการป้องกัน
-]
+const PUBLIC_PATHS = ["/login", "/register", "/auth/callback"]
 
-export function proxy(request: NextRequest) {
-  const pathname = request.nextUrl.pathname
-  const isProtectedPath = protectedPaths.some(path => pathname.startsWith(path))
-  
-  // ข้าม middleware ถ้าไม่ใช่ protected path
-  if (!isProtectedPath) {
-    return NextResponse.next()
-  }
+export async function proxy(request: NextRequest) {
+  let response = NextResponse.next({ request })
 
-  const token = request.cookies.get('tmp-auth-token')?.value
-  const isPublicPath = ['/login', '/register'].includes(pathname)
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-  // Debug logging (สำหรับ development เท่านั้น)
-  console.log(`[Middleware] Path: ${pathname}`, {
-    token: !!token,
-    isPublicPath,
-    isProtectedPath
+  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      getAll() {
+        return request.cookies.getAll()
+      },
+      setAll(cookiesToSet) {
+        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+        response = NextResponse.next({ request })
+        cookiesToSet.forEach(({ name, value, options }) =>
+          response.cookies.set(name, value, options)
+        )
+      },
+    },
   })
 
-  // กรณีไม่มี token และไม่ใช่ public path
-  if (!token && !isPublicPath) {
-    const loginUrl = new URL('/login', request.nextUrl.origin)
-    loginUrl.searchParams.set('redirect', pathname)
-    
-    // ตรวจสอบว่าไม่ใช่ request สำหรับไฟล์ static
-    if (!pathname.startsWith('/_next/')) {
-      console.log(`[Middleware] Redirecting to login from ${pathname}`)
-      return NextResponse.redirect(loginUrl)
-    }
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const pathname = request.nextUrl.pathname
+  const isPublicPath = PUBLIC_PATHS.some((path) => pathname.startsWith(path))
+
+  if (!user && !isPublicPath) {
+    const loginUrl = new URL("/login", request.url)
+    loginUrl.searchParams.set("redirect", pathname)
+    return NextResponse.redirect(loginUrl)
   }
 
-  // กรณีมี token แต่พยายามเข้า public path
-  if (token && isPublicPath) {
-    const dashboardUrl = new URL('/dashboard', request.nextUrl.origin)
-    console.log(`[Middleware] Redirecting to dashboard from ${pathname}`)
-    return NextResponse.redirect(dashboardUrl)
+  if (user && (pathname === "/login" || pathname === "/register")) {
+    return NextResponse.redirect(new URL("/dashboard", request.url))
   }
 
-  return NextResponse.next()
+  return response
 }
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for:
-     * - api routes
-     * - static files
-     * - image optimization files
-     * - favicon
-     */
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    "/((?!api|_next/static|_next/image|favicon.ico).*)",
   ],
 }

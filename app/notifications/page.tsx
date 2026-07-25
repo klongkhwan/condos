@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import { MainLayout } from "@/components/layout/main-layout";
 import { Modal } from "@/components/ui/modal";
+import { PageHeader } from "@/components/ui/page-header";
+import { FilterBar, FilterSelect } from "@/components/ui/filter-bar";
 import { useAuth } from "@/lib/auth-context";
 import { useNotifications } from "@/lib/hooks/use-queries";
 import type { NotificationSummary, NotificationItem } from "@/lib/supabase";
@@ -88,30 +90,30 @@ export default function NotificationsPage() {
     const iconClass = "h-4 w-4";
     switch (type) {
       case "rent_overdue":
-        return <AlertTriangle className={`${iconClass} text-red-400`} />;
+        return <AlertTriangle className={`${iconClass} text-destructive`} />;
       case "rent_due":
-        return <Calendar className={`${iconClass} text-amber-400`} />;
+        return <Calendar className={`${iconClass} text-warning`} />;
       case "contract_expiring":
-        return <Clock className={`${iconClass} text-orange-400`} />;
+        return <Clock className={`${iconClass} text-warning`} />;
       case "payment_received":
-        return <CheckCircle className={`${iconClass} text-emerald-400`} />;
+        return <CheckCircle className={`${iconClass} text-success`} />;
       case "condo_payment_due":
-        return <CreditCard className={`${iconClass} text-violet-400`} />;
+        return <CreditCard className={`${iconClass} text-info`} />;
       default:
-        return <Bell className={`${iconClass} text-gray-400`} />;
+        return <Bell className={`${iconClass} text-muted-foreground`} />;
     }
   };
 
   const getPriorityStyles = (priority: string) => {
     switch (priority) {
       case "high":
-        return "border-l-red-500 bg-gradient-to-r from-red-500/10 to-transparent";
+        return "border-l-destructive bg-destructive-muted/50";
       case "medium":
-        return "border-l-amber-500 bg-gradient-to-r from-amber-500/10 to-transparent";
+        return "border-l-warning bg-warning-muted/50";
       case "low":
-        return "border-l-emerald-500 bg-gradient-to-r from-emerald-500/10 to-transparent";
+        return "border-l-success bg-success-muted/50";
       default:
-        return "border-l-gray-500 bg-gradient-to-r from-gray-500/10 to-transparent";
+        return "border-l-border-strong bg-muted/50";
     }
   };
 
@@ -155,92 +157,67 @@ export default function NotificationsPage() {
   return (
     <MainLayout>
       <div className="space-y-4 sm:space-y-6">
-        {/* Hero Header */}
-        <div className="relative overflow-hidden rounded-xl sm:rounded-2xl bg-gradient-to-br from-primary/20 via-violet-600/10 to-transparent border border-white/10 p-4 sm:p-6">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-          <div className="relative">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-              <div>
-                <div className="flex items-center gap-2 sm:gap-3 mb-1 sm:mb-2">
-                  <div className="p-1.5 sm:p-2 bg-primary/20 rounded-lg sm:rounded-xl">
-                    <Bell className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-                  </div>
-                  <h1 className="text-xl sm:text-2xl font-bold text-white">การแจ้งเตือน</h1>
-                </div>
-                <p className="text-sm sm:text-base text-gray-400">
-                  ติดตามการแจ้งเตือนและข้อมูลสำคัญของคุณ
-                </p>
-              </div>
-              {unreadCount > 0 && (
-                <button
-                  onClick={handleMarkAllAsRead}
-                  className="px-3 py-2 sm:px-4 sm:py-2.5 bg-primary text-white rounded-lg sm:rounded-xl hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 flex items-center gap-2 font-medium text-sm"
-                >
-                  <MailOpen className="h-4 w-4" />
-                  อ่านทั้งหมด
-                </button>
-              )}
-            </div>
+        <PageHeader
+          title="การแจ้งเตือน"
+          description="ติดตามการแจ้งเตือนและข้อมูลสำคัญของคุณ"
+          icon={Bell}
+          actions={
+            unreadCount > 0 ? (
+              <button
+                onClick={handleMarkAllAsRead}
+                className="flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                <MailOpen className="h-4 w-4" />
+                อ่านทั้งหมด
+              </button>
+            ) : undefined
+          }
+        />
 
-            {/* Filters */}
-            <div className="flex flex-wrap gap-2 sm:gap-3 mt-3 sm:mt-4">
-              <select
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(e.target.value)}
-                className="bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 text-white text-xs sm:text-sm focus:border-primary focus:ring-1 focus:ring-primary transition-all"
-              >
-                {yearOptions.map((year) => (
-                  <option key={year} value={year} className="bg-gray-900">
-                    {year + 543}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                className="bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 text-white text-xs sm:text-sm focus:border-primary focus:ring-1 focus:ring-primary transition-all"
-              >
-                <option value="" className="bg-gray-900">ทุกเดือน</option>
-                {MONTH_OPTIONS_SHORT.map((month) => (
-                  <option key={month.value} value={month.value} className="bg-gray-900">
-                    {month.label}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={isRead}
-                onChange={(e) => setIsRead(e.target.value)}
-                className="bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 text-white text-xs sm:text-sm focus:border-primary focus:ring-1 focus:ring-primary transition-all"
-              >
-                <option value="" className="bg-gray-900">ทั้งหมด</option>
-                <option value="unread" className="bg-gray-900">ยังไม่อ่าน</option>
-                <option value="read" className="bg-gray-900">อ่านแล้ว</option>
-              </select>
-            </div>
-          </div>
-        </div>
+        <FilterBar>
+          <FilterSelect label="ปี" value={selectedYear} onChange={setSelectedYear}>
+            {yearOptions.map((year) => (
+              <option key={year} value={year}>
+                {year + 543}
+              </option>
+            ))}
+          </FilterSelect>
+          <FilterSelect label="เดือน" value={selectedMonth} onChange={setSelectedMonth}>
+            <option value="">ทุกเดือน</option>
+            {MONTH_OPTIONS_SHORT.map((month) => (
+              <option key={month.value} value={month.value}>
+                {month.label}
+              </option>
+            ))}
+          </FilterSelect>
+          <FilterSelect label="สถานะ" value={isRead} onChange={setIsRead}>
+            <option value="">ทั้งหมด</option>
+            <option value="unread">ยังไม่อ่าน</option>
+            <option value="read">อ่านแล้ว</option>
+          </FilterSelect>
+        </FilterBar>
 
         {/* Inbox List */}
-        <div className="bg-card/30 backdrop-blur-sm rounded-xl sm:rounded-2xl border border-white/10 overflow-hidden">
+        <div className="bg-card rounded-xl border border-border shadow-card overflow-hidden">
           {loading ? (
             <div className="flex items-center justify-center py-16">
               <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
             </div>
           ) : filteredSummaries?.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-              <div className="p-4 bg-white/5 rounded-full mb-4">
+            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+              <div className="p-4 bg-muted rounded-full mb-4">
                 <Sparkles className="h-8 w-8" />
               </div>
-              <p className="text-lg font-medium text-white mb-1">ไม่มีการแจ้งเตือน</p>
+              <p className="text-lg font-medium text-foreground mb-1">ไม่มีการแจ้งเตือน</p>
               <p className="text-sm">คุณไม่มีรายการแจ้งเตือนในขณะนี้</p>
             </div>
           ) : (
-            <div className="divide-y divide-white/5">
+            <div className="divide-y divide-border">
               {filteredSummaries?.map((summary, idx) => (
                 <div
                   key={summary.id}
                   onClick={() => handleViewDetails(summary)}
-                  className={`group relative flex items-center gap-3 sm:gap-4 p-3 sm:p-4 cursor-pointer transition-all hover:bg-white/5 ${
+                  className={`group relative flex items-center gap-3 sm:gap-4 p-3 sm:p-4 cursor-pointer transition-all hover:bg-surface-raised ${
                     !summary.is_read ? "bg-primary/5" : ""
                   }`}
                   style={{ animationDelay: `${idx * 50}ms` }}
@@ -255,7 +232,7 @@ export default function NotificationsPage() {
                     className={`flex-shrink-0 p-2 sm:p-3 rounded-lg sm:rounded-xl transition-all ${
                       !summary.is_read
                         ? "bg-primary/20 text-primary"
-                        : "bg-white/5 text-gray-400 group-hover:bg-white/10"
+                        : "bg-muted text-muted-foreground group-hover:bg-accent"
                     }`}
                   >
                     {!summary.is_read ? (
@@ -268,7 +245,7 @@ export default function NotificationsPage() {
                   {/* Content */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5 sm:mb-1">
-                      <span className={`font-semibold text-sm sm:text-base ${!summary.is_read ? "text-white" : "text-gray-300"}`}>
+                      <span className={`font-semibold text-sm sm:text-base ${!summary.is_read ? "text-foreground" : "text-foreground"}`}>
                         {formatDate(summary.date)}
                       </span>
                       {!summary.is_read && (
@@ -277,19 +254,19 @@ export default function NotificationsPage() {
                         </span>
                       )}
                     </div>
-                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-gray-400">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Bell className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                         {summary.total_count} รายการ
                       </span>
                       {summary.high_count > 0 && (
-                        <span className="flex items-center gap-1 text-red-400">
+                        <span className="flex items-center gap-1 text-destructive">
                           <AlertTriangle className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                           {summary.high_count} สำคัญ
                         </span>
                       )}
                       {summary.email_sent && (
-                        <span className="hidden sm:flex items-center gap-1 text-emerald-400">
+                        <span className="hidden sm:flex items-center gap-1 text-success">
                           <CheckCircle className="h-3.5 w-3.5" />
                           ส่งเมลแล้ว
                         </span>
@@ -298,7 +275,7 @@ export default function NotificationsPage() {
                   </div>
 
                   {/* Arrow */}
-                  <ChevronRight className="h-5 w-5 text-gray-500 group-hover:text-white transition-colors" />
+                  <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
                 </div>
               ))}
             </div>
@@ -316,37 +293,37 @@ export default function NotificationsPage() {
         {selectedSummary && (
           <div className="space-y-6">
             {/* Modal Header */}
-            <div className="text-center pb-4 border-b border-white/10">
+            <div className="text-center pb-4 border-b border-border">
               <div className="inline-flex p-3 bg-primary/20 rounded-2xl mb-3">
                 <Bell className="h-6 w-6 text-primary" />
               </div>
-              <h2 className="text-xl font-bold text-white">
+              <h2 className="text-xl font-bold text-foreground">
                 แจ้งเตือน{formatDate(selectedSummary.date) === "วันนี้" ? "วันนี้" : ""}
               </h2>
-              <p className="text-gray-400 text-sm mt-1">
+              <p className="text-muted-foreground text-sm mt-1">
                 {formatFullDate(selectedSummary.date)}
               </p>
             </div>
 
             {/* Summary Stats */}
             <div className="grid grid-cols-3 gap-3">
-              <div className="bg-white/5 rounded-xl p-3 text-center border border-white/5">
-                <div className="text-xl font-bold text-white">
+              <div className="bg-muted rounded-xl p-3 text-center border border-border">
+                <div className="text-xl font-bold text-foreground">
                   {selectedSummary.total_count}
                 </div>
-                <div className="text-xs text-gray-400 mt-0.5">ทั้งหมด</div>
+                <div className="text-xs text-muted-foreground mt-0.5">ทั้งหมด</div>
               </div>
-              <div className="bg-red-500/10 rounded-xl p-3 text-center border border-red-500/20">
-                <div className="text-xl font-bold text-red-400">
+              <div className="bg-destructive-muted rounded-xl p-3 text-center border border-destructive/25">
+                <div className="text-xl font-bold text-destructive">
                   {selectedSummary.high_count}
                 </div>
-                <div className="text-xs text-gray-400 mt-0.5">สำคัญ</div>
+                <div className="text-xs text-muted-foreground mt-0.5">สำคัญ</div>
               </div>
-              <div className="bg-amber-500/10 rounded-xl p-3 text-center border border-amber-500/20">
-                <div className="text-xl font-bold text-amber-400">
+              <div className="bg-warning-muted rounded-xl p-3 text-center border border-warning/25">
+                <div className="text-xl font-bold text-warning">
                   {selectedSummary.medium_count}
                 </div>
-                <div className="text-xs text-gray-400 mt-0.5">ปานกลาง</div>
+                <div className="text-xs text-muted-foreground mt-0.5">ปานกลาง</div>
               </div>
             </div>
 
@@ -360,10 +337,10 @@ export default function NotificationsPage() {
                     {grouped.high.length > 0 && (
                       <div>
                         <div className="flex items-center gap-2 mb-2">
-                          <div className="p-1 bg-red-500/20 rounded">
-                            <AlertTriangle className="h-3.5 w-3.5 text-red-400" />
+                          <div className="p-1 bg-destructive-muted rounded">
+                            <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
                           </div>
-                          <span className="text-sm font-medium text-red-400">
+                          <span className="text-sm font-medium text-destructive">
                             สำคัญสูง ({grouped.high.length})
                           </span>
                         </div>
@@ -375,11 +352,11 @@ export default function NotificationsPage() {
                             >
                               <div className="flex items-center gap-2 mb-1">
                                 {getTypeIcon(item.type)}
-                                <span className="font-medium text-white text-sm">{item.title}</span>
+                                <span className="font-medium text-foreground text-sm">{item.title}</span>
                               </div>
-                              <p className="text-xs text-gray-400 leading-relaxed">{item.message}</p>
+                              <p className="text-xs text-muted-foreground leading-relaxed">{item.message}</p>
                               {item.amount && (
-                                <div className="mt-2 inline-flex items-center px-2 py-1 bg-white/5 rounded text-xs font-medium text-white">
+                                <div className="mt-2 inline-flex items-center px-2 py-1 bg-muted rounded text-xs font-medium text-foreground">
                                   ฿{item.amount.toLocaleString()}
                                 </div>
                               )}
@@ -393,10 +370,10 @@ export default function NotificationsPage() {
                     {grouped.medium.length > 0 && (
                       <div>
                         <div className="flex items-center gap-2 mb-2">
-                          <div className="p-1 bg-amber-500/20 rounded">
-                            <Calendar className="h-3.5 w-3.5 text-amber-400" />
+                          <div className="p-1 bg-warning-muted rounded">
+                            <Calendar className="h-3.5 w-3.5 text-warning" />
                           </div>
-                          <span className="text-sm font-medium text-amber-400">
+                          <span className="text-sm font-medium text-warning">
                             ปานกลาง ({grouped.medium.length})
                           </span>
                         </div>
@@ -408,11 +385,11 @@ export default function NotificationsPage() {
                             >
                               <div className="flex items-center gap-2 mb-1">
                                 {getTypeIcon(item.type)}
-                                <span className="font-medium text-white text-sm">{item.title}</span>
+                                <span className="font-medium text-foreground text-sm">{item.title}</span>
                               </div>
-                              <p className="text-xs text-gray-400 leading-relaxed">{item.message}</p>
+                              <p className="text-xs text-muted-foreground leading-relaxed">{item.message}</p>
                               {item.amount && (
-                                <div className="mt-2 inline-flex items-center px-2 py-1 bg-white/5 rounded text-xs font-medium text-white">
+                                <div className="mt-2 inline-flex items-center px-2 py-1 bg-muted rounded text-xs font-medium text-foreground">
                                   ฿{item.amount.toLocaleString()}
                                 </div>
                               )}
@@ -426,10 +403,10 @@ export default function NotificationsPage() {
                     {grouped.low.length > 0 && (
                       <div>
                         <div className="flex items-center gap-2 mb-2">
-                          <div className="p-1 bg-emerald-500/20 rounded">
-                            <Bell className="h-3.5 w-3.5 text-emerald-400" />
+                          <div className="p-1 bg-success-muted rounded">
+                            <Bell className="h-3.5 w-3.5 text-success" />
                           </div>
-                          <span className="text-sm font-medium text-emerald-400">
+                          <span className="text-sm font-medium text-success">
                             ทั่วไป ({grouped.low.length})
                           </span>
                         </div>
@@ -441,11 +418,11 @@ export default function NotificationsPage() {
                             >
                               <div className="flex items-center gap-2 mb-1">
                                 {getTypeIcon(item.type)}
-                                <span className="font-medium text-white text-sm">{item.title}</span>
+                                <span className="font-medium text-foreground text-sm">{item.title}</span>
                               </div>
-                              <p className="text-xs text-gray-400 leading-relaxed">{item.message}</p>
+                              <p className="text-xs text-muted-foreground leading-relaxed">{item.message}</p>
                               {item.amount && (
-                                <div className="mt-2 inline-flex items-center px-2 py-1 bg-white/5 rounded text-xs font-medium text-white">
+                                <div className="mt-2 inline-flex items-center px-2 py-1 bg-muted rounded text-xs font-medium text-foreground">
                                   ฿{item.amount.toLocaleString()}
                                 </div>
                               )}

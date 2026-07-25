@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import { Plus, Copy, Edit, X, TrendingUp, TrendingDown, DollarSign, ChevronLeft, ChevronRight, BarChart3, Download } from "lucide-react";
+import { Plus, Copy, Edit, X, TrendingUp, TrendingDown, DollarSign, ChevronLeft, ChevronRight, BarChart3, Download, Wallet } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
 import { MainLayout } from "@/components/layout/main-layout";
-import { Notification } from "@/components/ui/notification";
+import { useNotification } from "@/lib/hooks/use-notification";
 import { StatsCard } from "@/components/ui/stats-card";
 import { Modal } from "@/components/ui/modal";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
@@ -35,10 +36,7 @@ export default function PersonalFinancePage() {
 
   const { records, summary, loading, refetch } = usePersonalFinancesByMonth(user?.id, selectedMonth);
 
-  const [notification, setNotification] = useState<{
-    message: string;
-    type: "success" | "error";
-  } | null>(null);
+  const { setNotification, notificationElement } = useNotification();
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -281,44 +279,33 @@ export default function PersonalFinancePage() {
   return (
     <MainLayout>
       <div className="space-y-4 sm:space-y-6">
-        {notification && (
-          <Notification
-            message={notification.message}
-            type={notification.type}
-            onClose={() => setNotification(null)}
-          />
-        )}
+        {notificationElement}
 
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-white">รายรับ-รายจ่ายส่วนตัว</h1>
-            <p className="text-sm sm:text-base text-gray-400">
-              ภาพรวมรายรับ-รายจ่ายประจำเดือน
-            </p>
-          </div>
-          <div className="flex space-x-3">
+        <PageHeader
+          title="รายรับ-รายจ่ายส่วนตัว"
+          description="ภาพรวมรายรับ-รายจ่ายประจำเดือน"
+          icon={Wallet}
+          actions={
             <button
               onClick={openReportModal}
-              className="flex items-center px-3 py-2 sm:px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors shadow-lg shadow-blue-900/20 text-sm"
+              className="flex items-center px-3 py-2 sm:px-4 bg-info hover:bg-info/90 text-info-foreground rounded-lg transition-colors text-sm"
               title="ดูรายงานผลรวมรายปี"
             >
               <BarChart3 className="h-4 w-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">รายงาน</span>
-              <span className="sm:hidden">รายงาน</span>
+              รายงาน
             </button>
-          </div>
-        </div>
+          }
+        />
 
         {/* Month Selector & Summary Row */}
         <div className="flex flex-col xl:flex-row gap-4 xl:gap-6 items-start">
             {/* Filter and Actions Group */}
             <div className="flex flex-col gap-3 shrink-0 w-full xl:w-auto min-w-[280px]">
-              <div className="bg-gray-800 rounded-lg border border-gray-700 p-2 sm:p-4 flex items-center justify-center">
+              <div className="bg-card rounded-lg border border-border p-2 sm:p-4 flex items-center justify-center">
                 <div className="flex items-center justify-between w-full space-x-2">
                   <button
                     onClick={handlePrevMonth}
-                    className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors flex-shrink-0"
+                    className="p-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-full transition-colors flex-shrink-0"
                   >
                     <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" />
                   </button>
@@ -333,7 +320,7 @@ export default function PersonalFinancePage() {
                       }
                     }}
                   >
-                    <span className="text-lg sm:text-xl font-bold text-white text-center group-hover:text-green-400 transition-colors">
+                    <span className="text-lg sm:text-xl font-bold text-foreground text-center group-hover:text-primary transition-colors">
                       {formatMonthTh(selectedMonth)}
                     </span>
                     <input 
@@ -348,7 +335,7 @@ export default function PersonalFinancePage() {
 
                   <button
                     onClick={handleNextMonth}
-                    className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors flex-shrink-0"
+                    className="p-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-full transition-colors flex-shrink-0"
                   >
                     <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" />
                   </button>
@@ -358,9 +345,9 @@ export default function PersonalFinancePage() {
               <button
                  onClick={handleCopyMonth}
                  title="คัดลอกข้อมูลจากเดือนอื่นมายังเดือนปัจจุบัน"
-                 className="w-full justify-center items-center flex px-3 py-2 sm:px-4 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors border border-gray-700 text-sm shadow-sm"
+                 className="w-full justify-center items-center flex px-3 py-2 sm:px-4 bg-card hover:bg-accent text-foreground rounded-lg transition-colors border border-border text-sm shadow-sm"
               >
-                 <Copy className="h-4 w-4 mr-1 sm:mr-2 text-gray-400" />
+                 <Copy className="h-4 w-4 mr-1 sm:mr-2 text-muted-foreground" />
                  <span>คัดลอกข้อมูลจากเดือนอื่น</span>
               </button>
             </div>
@@ -380,7 +367,7 @@ export default function PersonalFinancePage() {
                 <StatsCard
                   title="ยอดคงเหลือสุทธิ"
                   value={`฿${netBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                  valueClassName={netBalance > 0 ? "text-green-400" : netBalance < 0 ? "text-red-400" : "text-white"}
+                  valueClassName={netBalance > 0 ? "text-success" : netBalance < 0 ? "text-destructive" : "text-foreground"}
                   icon={DollarSign}
                   trend={
                     netBalance >= 0
@@ -395,9 +382,9 @@ export default function PersonalFinancePage() {
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6 items-start">
           
           {/* Income Table */}
-          <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-sm flex flex-col h-[400px] sm:h-[600px]">
-            <div className="bg-green-600/20 px-4 py-3 border-b border-green-600/30 flex justify-between items-center shrink-0">
-               <h3 className="font-semibold text-green-400">รายรับ</h3>
+          <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm flex flex-col h-[400px] sm:h-[600px]">
+            <div className="bg-primary/20 px-4 py-3 border-b border-primary/30 flex justify-between items-center shrink-0">
+               <h3 className="font-semibold text-success">รายรับ</h3>
                <button 
                   onClick={() => {
                      setEditingRecord(null);
@@ -414,15 +401,15 @@ export default function PersonalFinancePage() {
                      setFormData({ type: "income", amount: "", date: defaultDate, description: "" });
                      setIsModalOpen(true);
                   }}
-                  className="p-1 hover:bg-green-500/20 rounded-md transition-colors text-green-400"
+                  className="p-1 hover:bg-success-muted rounded-md transition-colors text-success"
                   title="เพิ่มรายรับ"
                >
                  <Plus className="h-4 w-4" />
                </button>
             </div>
             <div className="overflow-auto flex-1">
-              <table className="w-full text-left text-sm text-gray-300 relative">
-                <thead className="text-xs text-gray-400 uppercase bg-gray-800/95 sticky top-0 z-10 shadow-sm border-b border-gray-700">
+              <table className="w-full text-left text-sm text-foreground relative">
+                <thead className="text-xs text-muted-foreground uppercase bg-card/95 sticky top-0 z-10 shadow-sm border-b border-border">
                   <tr>
                     <th className="px-3 py-3 font-medium text-center w-12 shrink-0">ลำดับ</th>
                     <th className="px-3 py-3 font-medium w-full">รายละเอียด</th>
@@ -431,24 +418,24 @@ export default function PersonalFinancePage() {
                     <th className="px-3 py-3 font-medium text-center w-20 shrink-0">จัดการ</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-700">
+                <tbody className="divide-y divide-border">
                   {loading ? (
-                    <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-500">กำลังโหลด...</td></tr>
+                    <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">กำลังโหลด...</td></tr>
                   ) : incomeRecords.length === 0 ? (
-                    <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-500">ไม่มีข้อมูลรายรับ</td></tr>
+                    <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">ไม่มีข้อมูลรายรับ</td></tr>
                   ) : (
                     incomeRecords.map((record: PersonalFinanceRecord, index: number) => (
-                      <tr key={record.id} className="hover:bg-gray-700/50 transition-colors">
-                        <td className="px-3 py-3 text-center text-gray-500">{index + 1}</td>
+                      <tr key={record.id} className="hover:bg-accent/50 transition-colors">
+                        <td className="px-3 py-3 text-center text-muted-foreground">{index + 1}</td>
                         <td className="px-3 py-3 break-all sm:break-normal">{record.description || "-"}</td>
                         <td className="px-3 py-3 whitespace-nowrap text-right sm:text-left">{new Date(record.date).toLocaleDateString("th-TH")}</td>
-                        <td className="px-3 py-3 whitespace-nowrap text-right font-medium text-green-400">
+                        <td className="px-3 py-3 whitespace-nowrap text-right font-medium text-success">
                           {record.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                         <td className="px-3 py-3 whitespace-nowrap text-center">
                            <div className="flex justify-center space-x-1">
-                              <button onClick={() => openModal(record)} className="text-blue-400 hover:text-blue-300 p-1.5 hover:bg-blue-400/10 rounded-md transition-colors" title="แก้ไข"><Edit className="h-3.5 w-3.5" /></button>
-                              <button onClick={() => handleDeleteClick(record)} className="text-red-400 hover:text-red-300 p-1.5 hover:bg-red-400/10 rounded-md transition-colors" title="ลบ"><X className="h-3.5 w-3.5" /></button>
+                              <button onClick={() => openModal(record)} className="text-info hover:text-info p-1.5 hover:bg-info-muted rounded-md transition-colors" title="แก้ไข"><Edit className="h-3.5 w-3.5" /></button>
+                              <button onClick={() => handleDeleteClick(record)} className="text-destructive hover:text-destructive p-1.5 hover:bg-destructive-muted rounded-md transition-colors" title="ลบ"><X className="h-3.5 w-3.5" /></button>
                            </div>
                         </td>
                       </tr>
@@ -460,9 +447,9 @@ export default function PersonalFinancePage() {
           </div>
 
           {/* Expense Table */}
-          <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-sm flex flex-col h-[400px] sm:h-[600px]">
-            <div className="bg-red-600/20 px-4 py-3 border-b border-red-600/30 flex justify-between items-center shrink-0">
-               <h3 className="font-semibold text-red-400">รายจ่าย</h3>
+          <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm flex flex-col h-[400px] sm:h-[600px]">
+            <div className="bg-destructive/20 px-4 py-3 border-b border-destructive/30 flex justify-between items-center shrink-0">
+               <h3 className="font-semibold text-destructive">รายจ่าย</h3>
                <button 
                   onClick={() => {
                      setEditingRecord(null);
@@ -479,15 +466,15 @@ export default function PersonalFinancePage() {
                      setFormData({ type: "expense", amount: "", date: defaultDate, description: "" });
                      setIsModalOpen(true);
                   }}
-                  className="p-1 hover:bg-red-500/20 rounded-md transition-colors text-red-400"
+                  className="p-1 hover:bg-destructive-muted rounded-md transition-colors text-destructive"
                   title="เพิ่มรายจ่าย"
                >
                  <Plus className="h-4 w-4" />
                </button>
             </div>
             <div className="overflow-auto flex-1">
-              <table className="w-full text-left text-sm text-gray-300 relative">
-                <thead className="text-xs text-gray-400 uppercase bg-gray-800/95 sticky top-0 z-10 shadow-sm border-b border-gray-700">
+              <table className="w-full text-left text-sm text-foreground relative">
+                <thead className="text-xs text-muted-foreground uppercase bg-card/95 sticky top-0 z-10 shadow-sm border-b border-border">
                   <tr>
                     <th className="px-3 py-3 font-medium text-center w-12 shrink-0">ลำดับ</th>
                     <th className="px-3 py-3 font-medium w-full">รายละเอียด</th>
@@ -496,24 +483,24 @@ export default function PersonalFinancePage() {
                     <th className="px-3 py-3 font-medium text-center w-20 shrink-0">จัดการ</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-700">
+                <tbody className="divide-y divide-border">
                   {loading ? (
-                    <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-500">กำลังโหลด...</td></tr>
+                    <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">กำลังโหลด...</td></tr>
                   ) : expenseRecords.length === 0 ? (
-                    <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-500">ไม่มีข้อมูลรายจ่าย</td></tr>
+                    <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">ไม่มีข้อมูลรายจ่าย</td></tr>
                   ) : (
                     expenseRecords.map((record: PersonalFinanceRecord, index: number) => (
-                      <tr key={record.id} className="hover:bg-gray-700/50 transition-colors">
-                        <td className="px-3 py-3 text-center text-gray-500">{index + 1}</td>
+                      <tr key={record.id} className="hover:bg-accent/50 transition-colors">
+                        <td className="px-3 py-3 text-center text-muted-foreground">{index + 1}</td>
                         <td className="px-3 py-3 break-all sm:break-normal">{record.description || "-"}</td>
                         <td className="px-3 py-3 whitespace-nowrap text-right sm:text-left">{new Date(record.date).toLocaleDateString("th-TH")}</td>
-                        <td className="px-3 py-3 whitespace-nowrap text-right font-medium text-red-400">
+                        <td className="px-3 py-3 whitespace-nowrap text-right font-medium text-destructive">
                           {record.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                         <td className="px-3 py-3 whitespace-nowrap text-center">
                            <div className="flex justify-center space-x-1">
-                              <button onClick={() => openModal(record)} className="text-blue-400 hover:text-blue-300 p-1.5 hover:bg-blue-400/10 rounded-md transition-colors" title="แก้ไข"><Edit className="h-3.5 w-3.5" /></button>
-                              <button onClick={() => handleDeleteClick(record)} className="text-red-400 hover:text-red-300 p-1.5 hover:bg-red-400/10 rounded-md transition-colors" title="ลบ"><X className="h-3.5 w-3.5" /></button>
+                              <button onClick={() => openModal(record)} className="text-info hover:text-info p-1.5 hover:bg-info-muted rounded-md transition-colors" title="แก้ไข"><Edit className="h-3.5 w-3.5" /></button>
+                              <button onClick={() => handleDeleteClick(record)} className="text-destructive hover:text-destructive p-1.5 hover:bg-destructive-muted rounded-md transition-colors" title="ลบ"><X className="h-3.5 w-3.5" /></button>
                            </div>
                         </td>
                       </tr>
@@ -535,8 +522,8 @@ export default function PersonalFinancePage() {
         <div className="space-y-6">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                ประเภท <span className="text-red-500">*</span>
+              <label className="block text-sm font-medium text-foreground mb-2" htmlFor="personal-finance-f1">
+                ประเภท <span className="text-destructive">*</span>
               </label>
               <div className="grid grid-cols-2 gap-3">
                 <button
@@ -544,8 +531,8 @@ export default function PersonalFinancePage() {
                   onClick={() => setFormData({ ...formData, type: "income" })}
                   className={`py-2.5 px-4 rounded-lg border flex items-center justify-center gap-2 transition-all ${
                     formData.type === "income"
-                      ? "bg-green-600/20 border-green-500 text-green-400 font-medium"
-                      : "bg-gray-800 border-gray-700 text-gray-400 hover:bg-gray-700"
+                      ? "bg-primary/20 border-primary text-success font-medium"
+                      : "bg-card border-border text-muted-foreground hover:bg-accent"
                   }`}
                 >
                   <TrendingUp className="h-4 w-4" />
@@ -556,8 +543,8 @@ export default function PersonalFinancePage() {
                   onClick={() => setFormData({ ...formData, type: "expense" })}
                   className={`py-2.5 px-4 rounded-lg border flex items-center justify-center gap-2 transition-all ${
                     formData.type === "expense"
-                      ? "bg-red-600/20 border-red-500 text-red-400 font-medium"
-                      : "bg-gray-800 border-gray-700 text-gray-400 hover:bg-gray-700"
+                      ? "bg-destructive/20 border-destructive text-destructive font-medium"
+                      : "bg-card border-border text-muted-foreground hover:bg-accent"
                   }`}
                 >
                   <TrendingDown className="h-4 w-4" />
@@ -567,36 +554,36 @@ export default function PersonalFinancePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1.5">
-                วันที่ <span className="text-red-500">*</span>
+              <label htmlFor="personal-finance-f1" className="block text-sm font-medium text-foreground mb-1.5">
+                วันที่ <span className="text-destructive">*</span>
               </label>
-              <input
+              <input id="personal-finance-f1"
                 type="date"
                 required
                 value={formData.date}
                 onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors"
+                className="w-full px-3 py-2 bg-card border border-input rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1.5">
+              <label className="block text-sm font-medium text-foreground mb-1.5" htmlFor="personal-finance-f2">
                 คำอธิบายรายละเอียด
               </label>
-              <input
+              <input id="personal-finance-f2"
                 type="text"
                 placeholder="เช่น ค่าข้าว, เงินเดือน, บิลค่าน้ำ..."
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors"
+                className="w-full px-3 py-2 bg-card border border-input rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1.5">
-                จำนวนเงิน (บาท) <span className="text-red-500">*</span>
+              <label className="block text-sm font-medium text-foreground mb-1.5" htmlFor="personal-finance-f3">
+                จำนวนเงิน (บาท) <span className="text-destructive">*</span>
               </label>
-              <input
+              <input id="personal-finance-f3"
                 type="number"
                 step="0.01"
                 min="0"
@@ -604,7 +591,7 @@ export default function PersonalFinancePage() {
                 placeholder="0.00"
                 value={formData.amount}
                 onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors"
+                className="w-full px-3 py-2 bg-card border border-input rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors"
               />
             </div>
 
@@ -612,14 +599,14 @@ export default function PersonalFinancePage() {
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors font-medium"
+                className="flex-1 px-4 py-2 bg-muted hover:bg-accent text-foreground rounded-lg transition-colors font-medium"
               >
                 ยกเลิก
               </button>
               <button
                 type="submit"
                 disabled={isSaving}
-                className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-lg transition-colors font-medium flex justify-center items-center"
+                className="flex-1 px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground rounded-lg transition-colors font-medium flex justify-center items-center"
               >
                 {isSaving ? "กำลังบันทึก..." : "บันทึก"}
               </button>
@@ -653,19 +640,19 @@ export default function PersonalFinancePage() {
         title="คัดลอกข้อมูลจากเดือนอื่น"
       >
         <div className="space-y-4">
-          <div className="bg-blue-600/10 border border-blue-500/20 rounded-lg p-4 text-blue-400 text-sm">
+          <div className="bg-info/10 border border-info/25 rounded-lg p-4 text-info text-sm">
             คุณต้องการคัดลอกข้อมูลรายรับ/รายจ่าย ทั้งหมดจากเดือนที่เลือก มาใส่ในเดือน <strong>{formatMonthTh(selectedMonth)}</strong> ใช่หรือไม่?
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1.5">
+            <label className="block text-sm font-medium text-foreground mb-1.5" htmlFor="personal-finance-f4">
               เลือกเดือนต้นทาง
             </label>
-            <input
+            <input id="personal-finance-f4"
               type="month"
               value={copySourceMonth}
               onChange={(e) => setCopySourceMonth(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 transition-colors"
+              className="w-full px-3 py-2 bg-card border border-input rounded-lg text-foreground focus:ring-2 focus:ring-ring transition-colors"
             />
           </div>
 
@@ -673,14 +660,14 @@ export default function PersonalFinancePage() {
             <button
               type="button"
               onClick={() => setIsCopyConfirmOpen(false)}
-              className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors font-medium"
+              className="flex-1 px-4 py-2 bg-muted hover:bg-accent text-foreground rounded-lg transition-colors font-medium"
             >
               ยกเลิก
             </button>
             <button
               onClick={confirmCopyMonth}
               disabled={isCopying || !copySourceMonth}
-              className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg transition-colors font-medium flex justify-center items-center"
+              className="flex-1 px-4 py-2 bg-info hover:bg-info/90 disabled:opacity-50 text-info-foreground rounded-lg transition-colors font-medium flex justify-center items-center"
             >
               {isCopying ? "กำลังคัดลอก..." : "ยืนยันคัดลอก"}
             </button>
@@ -698,11 +685,11 @@ export default function PersonalFinancePage() {
         <div className="space-y-4">
           <div className="flex justify-between items-center mb-4">
              <div className="flex items-center space-x-2">
-                <label className="text-sm font-medium text-gray-300">เลือกปี:</label>
-                <select
+                <label className="text-sm font-medium text-foreground" htmlFor="personal-finance-f5">เลือกปี:</label>
+                <select id="personal-finance-f5"
                   value={reportYear}
                   onChange={(e) => fetchYearlyReport(parseInt(e.target.value))}
-                  className="px-3 py-1.5 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  className="px-3 py-1.5 bg-card border border-input rounded-lg text-foreground focus:ring-ring focus:border-ring text-sm"
                 >
                   {availableYears.map(year => (
                     <option key={year} value={year}>{year + 543}</option>
@@ -711,21 +698,21 @@ export default function PersonalFinancePage() {
              </div>
           </div>
           
-          <div className="overflow-x-auto rounded-xl border border-gray-700 bg-gray-800">
-            <table className="w-full text-left text-sm text-gray-300">
-              <thead className="text-xs text-gray-400 uppercase bg-gray-900 border-b border-gray-700">
+          <div className="overflow-x-auto rounded-xl border border-border bg-card">
+            <table className="w-full text-left text-sm text-foreground">
+              <thead className="text-xs text-muted-foreground uppercase bg-card border-b border-border">
                 <tr>
                   <th className="px-3 py-2 font-medium text-center">เดือน</th>
-                  <th className="px-3 py-2 font-medium text-right text-green-400/80">รายรับ</th>
-                  <th className="px-3 py-2 font-medium text-right text-red-400/80">รายจ่าย</th>
+                  <th className="px-3 py-2 font-medium text-right text-success/80">รายรับ</th>
+                  <th className="px-3 py-2 font-medium text-right text-destructive/80">รายจ่าย</th>
                   <th className="px-3 py-2 font-medium text-right">ยอดสุทธิ</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-700">
+              <tbody className="divide-y divide-border">
                 {isFetchingReport ? (
-                  <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-500">กำลังดึงข้อมูล...</td></tr>
+                  <tr><td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">กำลังดึงข้อมูล...</td></tr>
                 ) : yearlyReportData.length === 0 ? (
-                  <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-500">ไม่มีข้อมูลในปีที่เลือก</td></tr>
+                  <tr><td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">ไม่มีข้อมูลในปีที่เลือก</td></tr>
                 ) : (
                   <>
                     {yearlyReportData.map((row) => {
@@ -733,30 +720,30 @@ export default function PersonalFinancePage() {
                       const monthName = date.toLocaleDateString('th-TH', { month: 'long' });
                       const isPositive = row.net >= 0;
                       return (
-                        <tr key={row.month} className="hover:bg-gray-700/50 transition-colors text-xs sm:text-sm">
+                        <tr key={row.month} className="hover:bg-accent/50 transition-colors text-xs sm:text-sm">
                           <td className="px-3 py-1.5 sm:py-2 text-center font-medium">{monthName}</td>
-                          <td className="px-3 py-1.5 sm:py-2 text-right text-green-400">
+                          <td className="px-3 py-1.5 sm:py-2 text-right text-success">
                             {row.income.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
-                          <td className="px-3 py-1.5 sm:py-2 text-right text-red-400">
+                          <td className="px-3 py-1.5 sm:py-2 text-right text-destructive">
                             {row.expense.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
-                          <td className={`px-3 py-1.5 sm:py-2 text-right font-bold ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
+                          <td className={`px-3 py-1.5 sm:py-2 text-right font-bold ${isPositive ? 'text-primary' : 'text-destructive'}`}>
                             {row.net.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
                         </tr>
                       );
                     })}
                     {/* Totals Row */}
-                    <tr className="bg-gray-900/50 border-t-2 border-gray-600 font-bold text-xs sm:text-sm">
-                       <td className="px-3 py-2 sm:py-3 text-center text-gray-200">รวมทั้งปี</td>
-                       <td className="px-3 py-2 sm:py-3 text-right text-green-400">
+                    <tr className="bg-card/60 border-t-2 border-input font-bold text-xs sm:text-sm">
+                       <td className="px-3 py-2 sm:py-3 text-center text-foreground">รวมทั้งปี</td>
+                       <td className="px-3 py-2 sm:py-3 text-right text-success">
                          {yearlyReportData.reduce((acc, row) => acc + row.income, 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                        </td>
-                       <td className="px-3 py-2 sm:py-3 text-right text-red-400">
+                       <td className="px-3 py-2 sm:py-3 text-right text-destructive">
                          {yearlyReportData.reduce((acc, row) => acc + row.expense, 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                        </td>
-                       <td className={`px-3 py-2 sm:py-3 text-right ${yearlyReportData.reduce((acc, row) => acc + row.net, 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                       <td className={`px-3 py-2 sm:py-3 text-right ${yearlyReportData.reduce((acc, row) => acc + row.net, 0) >= 0 ? 'text-primary' : 'text-destructive'}`}>
                          {yearlyReportData.reduce((acc, row) => acc + row.net, 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                        </td>
                     </tr>
@@ -769,7 +756,7 @@ export default function PersonalFinancePage() {
           <div className="pt-4 flex justify-end">
             <button
                onClick={() => setIsReportModalOpen(false)}
-               className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors font-medium"
+               className="px-4 py-2 bg-muted hover:bg-accent text-foreground rounded-lg transition-colors font-medium"
             >
               ปิดหน้าต่าง
             </button>

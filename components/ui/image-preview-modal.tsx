@@ -140,17 +140,17 @@ export function ImagePreviewModal({
     >
       <div className="w-full h-screen max-h-[75vh] flex flex-col bg-black">
         {/* Title Bar */}
-        <div className="flex items-center justify-between px-6 py-4 bg-black bg-opacity-90 backdrop-blur-sm border-b border-gray-700">
+        <div className="flex items-center justify-between px-6 py-4 bg-black bg-opacity-90 backdrop-blur-sm border-b border-border">
           <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-medium text-white truncate">
+            <h3 className="text-lg font-medium text-foreground truncate">
               {imageName}
             </h3>
-            <p className="text-sm text-gray-400 mt-1">{documentType}</p>
+            <p className="text-sm text-muted-foreground mt-1">{documentType}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="ml-4 p-2 text-gray-400 hover:text-white transition-colors"
+            className="ml-4 p-2 text-muted-foreground hover:text-foreground transition-colors"
             title="ปิด (Esc)"
           >
             <X className="h-5 w-5" />
@@ -173,8 +173,8 @@ export function ImagePreviewModal({
           {isLoading && (
             <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-80 z-20">
               <div className="flex flex-col items-center gap-3">
-                <Loader2 className="h-10 w-10 text-green-500 animate-spin" />
-                <span className="text-gray-400 text-sm">กำลังโหลดภาพ...</span>
+                <Loader2 className="h-10 w-10 text-primary animate-spin" />
+                <span className="text-muted-foreground text-sm">กำลังโหลดภาพ...</span>
               </div>
             </div>
           )}
@@ -183,14 +183,14 @@ export function ImagePreviewModal({
           {hasError && (
             <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-80 z-20">
               <div className="flex flex-col items-center gap-3 text-center">
-                <X className="h-10 w-10 text-red-500" />
-                <span className="text-gray-400 text-sm">ไม่สามารถโหลดภาพได้</span>
+                <X className="h-10 w-10 text-destructive" />
+                <span className="text-muted-foreground text-sm">ไม่สามารถโหลดภาพได้</span>
                 <button
                   onClick={() => {
                     setHasError(false);
                     setIsLoading(true);
                   }}
-                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded-lg transition-colors"
+                  className="px-4 py-2 bg-muted hover:bg-accent text-foreground text-sm rounded-lg transition-colors"
                 >
                   ลองใหม่
                 </button>
@@ -229,7 +229,7 @@ export function ImagePreviewModal({
 
           {/* Floating Controls */}
           <div className="absolute top-4 right-4 flex flex-col items-end space-y-2">
-            <div className="bg-black bg-opacity-60 text-white px-3 py-1 rounded-lg text-sm font-mono backdrop-blur-sm">
+            <div className="bg-black bg-opacity-60 text-foreground px-3 py-1 rounded-lg text-sm font-mono backdrop-blur-sm">
               {Math.round(zoomLevel * 100)}%
             </div>
 
@@ -237,7 +237,7 @@ export function ImagePreviewModal({
               <button
                 type="button"
                 onClick={handleZoomIn}
-                className="p-2 bg-black bg-opacity-60 hover:bg-opacity-80 text-white rounded-lg transition-all backdrop-blur-sm"
+                className="p-2 bg-black bg-opacity-60 hover:bg-opacity-80 text-foreground rounded-lg transition-all backdrop-blur-sm"
                 title="ซูมเข้า (+)"
               >
                 <ZoomIn className="h-4 w-4" />
@@ -245,7 +245,7 @@ export function ImagePreviewModal({
               <button
                 type="button"
                 onClick={handleZoomOut}
-                className="p-2 bg-black bg-opacity-60 hover:bg-opacity-80 text-white rounded-lg transition-all backdrop-blur-sm"
+                className="p-2 bg-black bg-opacity-60 hover:bg-opacity-80 text-foreground rounded-lg transition-all backdrop-blur-sm"
                 title="ซูมออก (-)"
               >
                 <ZoomOut className="h-4 w-4" />
@@ -253,7 +253,7 @@ export function ImagePreviewModal({
               <button
                 type="button"
                 onClick={handleRotate}
-                className="p-2 bg-black bg-opacity-60 hover:bg-opacity-80 text-white rounded-lg transition-all backdrop-blur-sm"
+                className="p-2 bg-black bg-opacity-60 hover:bg-opacity-80 text-foreground rounded-lg transition-all backdrop-blur-sm"
                 title="หมุนรูปภาพ (R)"
               >
                 <RotateCw className="h-4 w-4" />
@@ -261,17 +261,17 @@ export function ImagePreviewModal({
               <button
                 type="button"
                 onClick={resetZoom}
-                className="p-2 bg-black bg-opacity-60 hover:bg-opacity-80 text-white rounded-lg transition-all backdrop-blur-sm text-xs"
+                className="p-2 bg-black bg-opacity-60 hover:bg-opacity-80 text-foreground rounded-lg transition-all backdrop-blur-sm text-xs"
                 title="พอดีกับหน้าจอ (0)"
               >
                 ฟิต
               </button>
-              <div className="h-px bg-gray-600 my-1"></div>
+              <div className="h-px bg-muted my-1"></div>
               <a
                 href={imageUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-2 bg-black bg-opacity-60 hover:bg-opacity-80 text-white rounded-lg transition-all backdrop-blur-sm"
+                className="p-2 bg-black bg-opacity-60 hover:bg-opacity-80 text-foreground rounded-lg transition-all backdrop-blur-sm"
                 title="เปิดในแท็บใหม่"
               >
                 <Eye className="h-4 w-4" />
@@ -279,7 +279,7 @@ export function ImagePreviewModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="p-2 bg-red-600 bg-opacity-80 hover:bg-opacity-100 text-white rounded-lg transition-all"
+                className="p-2 bg-destructive bg-opacity-80 hover:bg-opacity-100 text-destructive-foreground rounded-lg transition-all"
                 title="ปิด"
               >
                 <X className="h-4 w-4" />

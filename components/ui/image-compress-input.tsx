@@ -140,12 +140,12 @@ export function ImageCompressInput({
     if (info.compressionRatio > 1) {
       const savedPercent = Math.round((1 - 1 / info.compressionRatio) * 100);
       return (
-        <span className="text-xs text-green-400">
+        <span className="text-xs text-success">
           {formatFileSize(info.originalSize)} → {formatFileSize(info.compressedSize)} (-{savedPercent}%)
         </span>
       );
     }
-    return <span className="text-xs text-gray-400">{formatFileSize(file.size)}</span>;
+    return <span className="text-xs text-muted-foreground">{formatFileSize(file.size)}</span>;
   };
 
   const isDisabled = disabled || loading || isCompressing;
@@ -154,17 +154,17 @@ export function ImageCompressInput({
     <div className={`space-y-2 ${className}`}>
       {/* Label */}
       {!hideLabel && (
-        <label className="block text-sm font-medium text-gray-300">{label}</label>
+        <label className="block text-sm font-medium text-foreground">{label}</label>
       )}
 
       {/* Upload Button + Files List - Inline Layout */}
       <div className="flex flex-wrap items-center gap-2">
         {/* Upload Button */}
         <label
-          className={`inline-flex items-center px-3 py-1.5 border border-gray-600 rounded-lg text-sm transition-colors ${
+          className={`inline-flex items-center px-3 py-1.5 border border-input rounded-lg text-sm transition-colors ${
             isDisabled
-              ? "bg-gray-700 text-gray-500 cursor-not-allowed"
-              : "bg-gray-700 text-gray-300 hover:bg-gray-600 cursor-pointer"
+              ? "bg-muted text-muted-foreground cursor-not-allowed"
+              : "bg-muted text-foreground hover:bg-accent cursor-pointer"
           }`}
         >
           {isCompressing ? (
@@ -193,21 +193,21 @@ export function ImageCompressInput({
         {files.map((file, index) => (
           <div
             key={`${file.name}-${index}`}
-            className="inline-flex items-center gap-1.5 px-2 py-1 bg-gray-700 border border-gray-600 rounded-lg text-sm"
+            className="inline-flex items-center gap-1.5 px-2 py-1 bg-muted border border-input rounded-lg text-sm"
           >
             {isImageFile(file) ? (
-              <ImageIcon className="h-3.5 w-3.5 text-green-400 flex-shrink-0" />
+              <ImageIcon className="h-3.5 w-3.5 text-success flex-shrink-0" />
             ) : (
-              <File className="h-3.5 w-3.5 text-blue-400 flex-shrink-0" />
+              <File className="h-3.5 w-3.5 text-info flex-shrink-0" />
             )}
-            <span className="text-white truncate max-w-[100px]" title={file.name}>
+            <span className="text-foreground truncate max-w-[100px]" title={file.name}>
               {file.name}
             </span>
             {showCompressInfo && getFileInfo(file, index)}
             <button
               type="button"
               onClick={() => removeFile(index)}
-              className="p-0.5 text-gray-400 hover:text-red-400 transition-colors"
+              className="p-0.5 text-muted-foreground hover:text-destructive transition-colors"
               title="ลบไฟล์"
             >
               <X className="h-3.5 w-3.5" />
@@ -217,7 +217,7 @@ export function ImageCompressInput({
       </div>
 
       {/* Helper Text */}
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-muted-foreground">
         ภาพจะถูกบีบอัดอัตโนมัติให้ไม่เกิน {maxSizeKB} KB
       </p>
     </div>

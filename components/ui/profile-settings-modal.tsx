@@ -101,7 +101,7 @@ export function ProfileSettingsModal({ isOpen, onClose, currentUser, onUpdateSuc
         {/* Profile Picture */}
         <div className="flex flex-col items-center gap-4">
   <div className="relative">
-    <div className="h-24 w-24 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden border border-gray-600">
+    <div className="h-24 w-24 rounded-full bg-muted flex items-center justify-center overflow-hidden border border-input">
       {profilePicturePreview ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -112,15 +112,15 @@ export function ProfileSettingsModal({ isOpen, onClose, currentUser, onUpdateSuc
           decoding="async"
         />
       ) : (
-        <User className="h-12 w-12 text-gray-400" />
+        <User className="h-12 w-12 text-muted-foreground" />
       )}
     </div>
     <label
       htmlFor="profile-picture-upload"
-      className="absolute -bottom-0.5 -right-0.5 bg-green-600 p-1 rounded-full cursor-pointer hover:bg-green-700 transition-colors"
+      className="absolute -bottom-0.5 -right-0.5 bg-primary p-1 rounded-full cursor-pointer hover:bg-primary/90 transition-colors"
       title="เปลี่ยนรูปโปรไฟล์"
     >
-      <ImageIcon className="h-4 w-4 text-white" />
+      <ImageIcon className="h-4 w-4 text-foreground" />
       <input
         id="profile-picture-upload"
         type="file"
@@ -131,12 +131,12 @@ export function ProfileSettingsModal({ isOpen, onClose, currentUser, onUpdateSuc
     </label>
   </div>
 
-          <p className="text-sm text-gray-400">คลิกไอคอนกล้องเพื่อเปลี่ยนรูปโปรไฟล์</p>
+          <p className="text-sm text-muted-foreground">คลิกไอคอนกล้องเพื่อเปลี่ยนรูปโปรไฟล์</p>
         </div>
 
         {/* Full Name */}
         <div>
-          <label htmlFor="full_name" className="block text-sm font-medium text-gray-300 mb-1">
+          <label htmlFor="full_name" className="block text-sm font-medium text-foreground mb-1">
             ชื่อ-นามสกุล
           </label>
           <input
@@ -144,19 +144,19 @@ export function ProfileSettingsModal({ isOpen, onClose, currentUser, onUpdateSuc
             type="text"
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
-            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+            className="w-full px-3 py-2 bg-muted border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             required
           />
         </div>
 
         {/* Password Fields */}
-        <div className="space-y-4 border-t border-gray-700 pt-6">
-          <h3 className="text-lg font-medium text-white flex items-center">
-            <Lock className="h-5 w-5 mr-2 text-gray-400" />
+        <div className="space-y-4 border-t border-border pt-6">
+          <h3 className="text-lg font-medium text-foreground flex items-center">
+            <Lock className="h-5 w-5 mr-2 text-muted-foreground" />
             เปลี่ยนรหัสผ่าน
           </h3>
           <div>
-            <label htmlFor="new_password" className="block text-sm font-medium text-gray-300 mb-1">
+            <label htmlFor="new_password" className="block text-sm font-medium text-foreground mb-1">
               รหัสผ่านใหม่
             </label>
             <input
@@ -164,11 +164,11 @@ export function ProfileSettingsModal({ isOpen, onClose, currentUser, onUpdateSuc
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full px-3 py-2 bg-muted border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
           <div>
-            <label htmlFor="confirm_new_password" className="block text-sm font-medium text-gray-300 mb-1">
+            <label htmlFor="confirm_new_password" className="block text-sm font-medium text-foreground mb-1">
               ยืนยันรหัสผ่านใหม่
             </label>
             <input
@@ -176,7 +176,7 @@ export function ProfileSettingsModal({ isOpen, onClose, currentUser, onUpdateSuc
               type="password"
               value={confirmNewPassword}
               onChange={(e) => setConfirmNewPassword(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full px-3 py-2 bg-muted border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
         </div>
@@ -185,7 +185,7 @@ export function ProfileSettingsModal({ isOpen, onClose, currentUser, onUpdateSuc
           <Button type="button" variant="ghost" onClick={onClose} disabled={loading}>
             ยกเลิก
           </Button>
-          <Button type="submit" className="bg-green-600 hover:bg-green-700" disabled={loading}>
+          <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={loading}>
             {loading ? "กำลังบันทึก..." : "บันทึก"}
           </Button>
         </div>

@@ -5,23 +5,34 @@ import { MainLayout } from "@/components/layout/main-layout"
 import { useAuth } from "@/lib/auth-context"
 import { useCondos, useRentPayments, useFinancialRecords, useTenants } from "@/lib/hooks/use-queries"
 import {
-  BarChart,
-  Bar,
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip as RechartsTooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
 } from "recharts"
 import { format } from "date-fns"
 import { th } from "date-fns/locale"
-import { Filter, DollarSign, TrendingUp, TrendingDown, Wallet, BarChart3 } from "lucide-react"
-import { StatsCard } from "@/components/ui/stats-card"
+import { Filter, DollarSign, TrendingUp, TrendingDown, Wallet, BarChart3, FileText, PieChart as PieChartIcon } from "lucide-react"
+import { MetricCard } from "@/components/ui/metric-card"
+import { PageHeader } from "@/components/ui/page-header"
+import { Panel, PanelHeader } from "@/components/ui/panel"
+import { CategoryDonut } from "@/components/ui/category-donut"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  ChartEmpty,
+  ChartGradient,
+  ChartLegend,
+  ChartSkeleton,
+  ChartTooltip,
+  axisProps,
+  formatBaht,
+  formatCompactBaht,
+  gridProps,
+  useChartTheme,
+} from "@/lib/chart-theme"
 
 // Static data hoisted outside component to prevent recreation on every render
 // See: Vercel Best Practices - rendering-hoist-jsx
@@ -42,6 +53,7 @@ const MONTH_OPTIONS_REPORT = [
 
 export default function ReportsPage() {
   const { user } = useAuth()
+  const chart = useChartTheme()
   const { incomeRecords, expenseRecords, loading: financialsLoading } = useFinancialRecords(user?.id)
   const { payments, loading: paymentsLoading } = useRentPayments(user?.id)
   const { condos, loading: condosLoading } = useCondos(user?.id)
@@ -99,7 +111,7 @@ export default function ReportsPage() {
     // Initialize dataMap with all months for the selected year
     for (let i = 0; i < 12; i++) {
       const monthValue = (i + 1).toString().padStart(2, "0")
-      const monthName = format(new Date(yearForLabels, i, 1), "MMMM", { locale: th })
+      const monthName = format(new Date(yearForLabels, i, 1), "MMM", { locale: th })
       dataMap.set(monthValue, { name: monthName, income: 0, expense: 0 })
     }
 
@@ -124,7 +136,7 @@ export default function ReportsPage() {
     // Convert map to array and sort by month number
     return Array.from(dataMap.entries())
       .sort(([monthA], [monthB]) => Number.parseInt(monthA) - Number.parseInt(monthB))
-      .map(([, value]) => value)
+      .map(([, value]) => ({ ...value, net: value.income - value.expense }))
   }, [filteredFinancialRecords.income, filteredFinancialRecords.expense, selectedYear])
 
   // Payment Status Data for Pie Chart
@@ -140,11 +152,11 @@ export default function ReportsPage() {
     })
 
     return [
-      { name: "ชำระแล้ว", value: statusCounts.paid, color: "#22c55e" }, // green-500
-      { name: "ยังไม่ชำระ", value: statusCounts.unpaid, color: "#eab308" }, // yellow-500
-      { name: "เกินกำหนด", value: statusCounts.overdue, color: "#ef4444" }, // red-500
+      { name: "ชำระแล้ว", value: statusCounts.paid, color: chart["chart-2"] },
+      { name: "ยังไม่ชำระ", value: statusCounts.unpaid, color: chart["chart-4"] },
+      { name: "เกินกำหนด", value: statusCounts.overdue, color: chart["chart-3"] },
     ].filter((item) => item.value > 0) // กรองรายการที่มีค่า 0 ออก
-  }, [filteredPayments])
+  }, [filteredPayments, chart])
 
   // Income by Category Data for Pie Chart
   const incomeByCategoryData = useMemo(() => {
@@ -219,21 +231,23 @@ export default function ReportsPage() {
   const totalRent = installmentAnalysis.reduce((sum, item) => sum + item.rent, 0);
   const totalDifference = totalInstallment - totalRent;
 
-  // Colors for Pie Charts (can be expanded)
-  const PIE_COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d", "#ffc658", "#a4de6c"]
+  const hasMonthlyData = monthlyFinancialData.some((m) => m.income > 0 || m.expense > 0)
+  const periodLabel = `${selectedYear === "all" ? "ทุกปี" : Number.parseInt(selectedYear) + 543}${
+    selectedMonth !== "all" ? ` · ${MONTH_OPTIONS_REPORT.find((m) => m.value === selectedMonth)?.label}` : ""
+  }`
 
   return (
     <MainLayout>
-      <div className="space-y-4 sm:space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-white">รายงานและสถิติ</h1>
-          <p className="text-sm sm:text-base text-gray-400">ภาพรวมการเงินและสถานะการชำระค่าเช่า</p>
-        </div>
+      <div className="space-y-5 sm:space-y-6">
+        <PageHeader
+          title="รายงานและสถิติ"
+          description="ภาพรวมการเงินและสถานะการชำระค่าเช่า"
+          icon={FileText}
+        />
 
         {/* Tabs for different report sections */}
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 bg-gray-800 p-1 border border-gray-600 rounded-lg mb-4 sm:mb-6">
+          <TabsList className="grid w-full grid-cols-2 bg-card p-1 border border-input rounded-lg mb-4 sm:mb-6">
             <TabsTrigger 
               value="overview"
               className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
@@ -253,14 +267,14 @@ export default function ReportsPage() {
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-4 sm:space-y-6">
             {/* Filters - inside Overview tab */}
-            <div className="bg-gray-800 rounded-lg border border-gray-700 p-3 sm:p-4 flex flex-wrap items-center gap-2 sm:gap-4">
-              <Filter className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 hidden sm:block" />
+            <div className="bg-card rounded-lg border border-border p-3 sm:p-4 flex flex-wrap items-center gap-2 sm:gap-4">
+              <Filter className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground hidden sm:block" />
               <div className="flex items-center gap-1 sm:gap-2">
-                <label className="text-xs sm:text-sm font-medium text-gray-300">ปี:</label>
-                <select
+                <label className="text-xs sm:text-sm font-medium text-foreground" htmlFor="reports-f1">ปี:</label>
+                <select id="reports-f1"
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(e.target.value)}
-                  className="px-2 py-1 sm:px-3 bg-gray-700 border border-gray-600 rounded text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="px-2 py-1 sm:px-3 bg-muted border border-input rounded text-foreground text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 >
                   <option value="all">ทุกปี</option>
                   {availableYears.length > 0 ? (
@@ -275,11 +289,11 @@ export default function ReportsPage() {
                 </select>
               </div>
               <div className="flex items-center gap-1 sm:gap-2">
-                <label className="text-xs sm:text-sm font-medium text-gray-300">เดือน:</label>
-                <select
+                <label className="text-xs sm:text-sm font-medium text-foreground" htmlFor="reports-f2">เดือน:</label>
+                <select id="reports-f2"
                   value={selectedMonth}
                   onChange={(e) => setSelectedMonth(e.target.value)}
-                  className="px-2 py-1 sm:px-3 bg-gray-700 border border-gray-600 rounded text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="px-2 py-1 sm:px-3 bg-muted border border-input rounded text-foreground text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 >
                   <option value="all">ทั้งหมด</option>
                   {MONTH_OPTIONS_REPORT.map((month) => (
@@ -290,11 +304,11 @@ export default function ReportsPage() {
                 </select>
               </div>
               <div className="flex items-center gap-1 sm:gap-2">
-                <label className="text-xs sm:text-sm font-medium text-gray-300">คอนโด:</label>
-                <select
+                <label className="text-xs sm:text-sm font-medium text-foreground" htmlFor="reports-f3">คอนโด:</label>
+                <select id="reports-f3"
                   value={selectedCondoFilter}
                   onChange={(e) => setSelectedCondoFilter(e.target.value)}
-                  className="px-2 py-1 sm:px-3 bg-gray-700 border border-gray-600 rounded text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-green-500 max-w-[100px] sm:max-w-none"
+                  className="px-2 py-1 sm:px-3 bg-muted border border-input rounded text-foreground text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-ring max-w-[100px] sm:max-w-none"
                 >
                   <option value="all">ทั้งหมด</option>
                   {condos.map((condo) => (
@@ -307,207 +321,175 @@ export default function ReportsPage() {
             </div>
 
             {/* Summary Statistics */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
-              <StatsCard
-                title="รายรับรวม"
-                value={`฿${totalIncome.toLocaleString()}`}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+              <MetricCard
+                label="รายรับรวม"
+                value={formatBaht(totalIncome)}
+                caption={periodLabel}
                 icon={TrendingUp}
-                className="bg-green-900/20 border-green-700"
+                tone="info"
                 loading={financialsLoading}
               />
-              <StatsCard
-                title="รายจ่ายรวม"
-                value={`฿${totalExpenses.toLocaleString()}`}
+              <MetricCard
+                label="รายจ่ายรวม"
+                value={formatBaht(totalExpenses)}
+                caption={periodLabel}
                 icon={TrendingDown}
-                className="bg-red-900/20 border-red-700"
+                tone="warning"
                 loading={financialsLoading}
               />
-              <StatsCard
-                title="กำไรสุทธิ"
-                value={`฿${netIncome.toLocaleString()}`}
+              <MetricCard
+                label="กำไรสุทธิ"
+                value={formatBaht(netIncome)}
+                caption={totalIncome > 0 ? `อัตรากำไร ${Math.round((netIncome / totalIncome) * 100)}%` : periodLabel}
                 icon={DollarSign}
-                className={netIncome >= 0 ? "bg-blue-900/20 border-blue-700" : "bg-red-900/20 border-red-700"}
+                tone={netIncome >= 0 ? "success" : "danger"}
+                spark={monthlyFinancialData.map((m) => m.net)}
                 loading={financialsLoading}
               />
             </div>
 
-        {/* Monthly Financial Chart */}
-        <div className="bg-gray-800 rounded-lg border border-gray-700 p-4 sm:p-6">
-          <h2 className="text-base sm:text-xl font-semibold text-white mb-3 sm:mb-4">
-            รายรับและรายจ่ายรายเดือน {selectedYear === "all" ? "(ทุกปี)" : `(${Number.parseInt(selectedYear) + 543})`}
-          </h2>
-          {financialsLoading ? (
-            <div className="text-gray-400 text-center py-10">กำลังโหลดข้อมูล...</div>
-          ) : (
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart
-                data={monthlyFinancialData}
-                margin={{
-                  top: 20,
-                  right: 30,
-                  left: 20,
-                  bottom: 5,
-                }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#4a5568" />
-                <XAxis dataKey="name" stroke="#cbd5e0" />
-                <YAxis stroke="#cbd5e0" tickFormatter={(value) => `฿${value.toLocaleString()}`} />
-                <Tooltip
-                  formatter={(value: number) => `฿${value.toLocaleString()}`}
-                  contentStyle={{ backgroundColor: "#2d3748", border: "none", borderRadius: "8px" }}
-                  labelStyle={{ color: "#cbd5e0" }}
-                  itemStyle={{ color: "#cbd5e0" }}
-                />
-                <Legend wrapperStyle={{ color: "#cbd5e0" }} />
-                <Bar dataKey="income" name="รายรับ" fill="#22c55e" /> {/* green-500 */}
-                <Bar dataKey="expense" name="รายจ่าย" fill="#ef4444" /> {/* red-500 */}
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-        </div>
+            {/* Monthly Financial Chart */}
+            <Panel>
+              <PanelHeader
+                title="รายรับและรายจ่ายรายเดือน"
+                description={periodLabel}
+                icon={BarChart3}
+                actions={
+                  <ChartLegend
+                    items={[
+                      { label: "รายรับ", color: chart["chart-1"], variant: "line" },
+                      { label: "รายจ่าย", color: chart["chart-3"], variant: "dashed" },
+                    ]}
+                  />
+                }
+              />
+              {financialsLoading ? (
+                <ChartSkeleton height={280} />
+              ) : !hasMonthlyData ? (
+                <ChartEmpty height={280} message="ไม่พบข้อมูลสำหรับตัวกรองที่เลือก" />
+              ) : (
+                <div className="h-[280px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    {/*
+                      12 เดือนใช้เส้นแทนแท่ง — แท่งคู่ 24 แท่งจะบางจนอ่านไม่ออก
+                      ระยะห่างระหว่างสองเส้นคือกำไรสุทธิ พื้นที่ใต้เส้นรายรับช่วยให้แยกชั้นได้
+                    */}
+                    <AreaChart data={monthlyFinancialData} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
+                      <defs>
+                        <ChartGradient id="reportIncome" color={chart["chart-1"]} from={0.22} to={0} />
+                      </defs>
+                      <CartesianGrid {...gridProps(chart)} />
+                      <XAxis
+                        dataKey="name"
+                        {...axisProps(chart)}
+                        dy={6}
+                        interval={0}
+                        tick={{ fill: chart["muted-foreground"], fontSize: 11 }}
+                      />
+                      <YAxis {...axisProps(chart)} tickFormatter={(v: number) => formatCompactBaht(v)} width={56} />
+                      <RechartsTooltip
+                        cursor={{ stroke: chart["chart-grid"], strokeWidth: 1 }}
+                        content={<ChartTooltip />}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="income"
+                        name="รายรับ"
+                        stroke={chart["chart-1"]}
+                        strokeWidth={2}
+                        fill="url(#reportIncome)"
+                        dot={false}
+                        activeDot={{ r: 4, strokeWidth: 2, stroke: chart["chart-1"] }}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="expense"
+                        name="รายจ่าย"
+                        stroke={chart["chart-3"]}
+                        strokeWidth={2}
+                        strokeDasharray="5 4"
+                        fill="none"
+                        dot={false}
+                        activeDot={{ r: 4, strokeWidth: 2, stroke: chart["chart-3"] }}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </Panel>
 
-        {/* Income and Expense by Category Pie Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-          <div className="bg-gray-800 rounded-lg border border-gray-700 p-4 sm:p-6">
-            <h2 className="text-base sm:text-xl font-semibold text-white mb-3 sm:mb-4">
-              รายรับตามหมวดหมู่ ({selectedYear === "all" ? "ทุกปี" : Number.parseInt(selectedYear) + 543}
-              {selectedMonth !== "all" && ` - ${MONTH_OPTIONS_REPORT.find((m) => m.value === selectedMonth)?.label}`})
-            </h2>
-            {financialsLoading ? (
-              <div className="text-gray-400 text-center py-10">กำลังโหลดข้อมูล...</div>
-            ) : incomeByCategoryData.length === 0 ? (
-              <div className="text-gray-400 text-center py-10">ไม่พบข้อมูลรายรับสำหรับตัวกรองที่เลือก</div>
-            ) : (
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
+            {/* Income and Expense by Category */}
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <Panel>
+                <PanelHeader title="รายรับตามหมวดหมู่" description={periodLabel} icon={TrendingUp} />
+                {financialsLoading ? (
+                  <ChartSkeleton height={220} />
+                ) : (
+                  <CategoryDonut
                     data={incomeByCategoryData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    outerRadius={100}
-                    fill="#8884d8"
-                    dataKey="value"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  >
-                    {incomeByCategoryData.map((entry, index) => (
-                      <Cell key={`cell-income-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value: number, name: string) => [`฿${value.toLocaleString()}`, name]}
-                    contentStyle={{ backgroundColor: "#2d3748", border: "none", borderRadius: "8px" }}
-                    labelStyle={{ color: "#cbd5e0" }}
-                    itemStyle={{ color: "#cbd5e0" }}
+                    centerLabel="รายรับรวม"
+                    emptyMessage="ไม่พบข้อมูลรายรับสำหรับตัวกรองที่เลือก"
+                    height={200}
                   />
-                  <Legend wrapperStyle={{ color: "#cbd5e0" }} />
-                </PieChart>
-              </ResponsiveContainer>
-            )}
-          </div>
+                )}
+              </Panel>
 
-          <div className="bg-gray-800 rounded-lg border border-gray-700 p-4 sm:p-6">
-            <h2 className="text-base sm:text-xl font-semibold text-white mb-3 sm:mb-4">
-              รายจ่ายตามหมวดหมู่ ({selectedYear === "all" ? "ทุกปี" : Number.parseInt(selectedYear) + 543}
-              {selectedMonth !== "all" && ` - ${MONTH_OPTIONS_REPORT.find((m) => m.value === selectedMonth)?.label}`})
-            </h2>
-            {financialsLoading ? (
-              <div className="text-gray-400 text-center py-10">กำลังโหลดข้อมูล...</div>
-            ) : expenseByCategoryData.length === 0 ? (
-              <div className="text-gray-400 text-center py-10">ไม่พบข้อมูลรายจ่ายสำหรับตัวกรองที่เลือก</div>
-            ) : (
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
+              <Panel>
+                <PanelHeader title="รายจ่ายตามหมวดหมู่" description={periodLabel} icon={TrendingDown} />
+                {financialsLoading ? (
+                  <ChartSkeleton height={220} />
+                ) : (
+                  <CategoryDonut
                     data={expenseByCategoryData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    outerRadius={100}
-                    fill="#8884d8"
-                    dataKey="value"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  >
-                    {expenseByCategoryData.map((entry, index) => (
-                      <Cell key={`cell-expense-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value: number, name: string) => [`฿${value.toLocaleString()}`, name]}
-                    contentStyle={{ backgroundColor: "#2d3748", border: "none", borderRadius: "8px" }}
-                    labelStyle={{ color: "#cbd5e0" }}
-                    itemStyle={{ color: "#cbd5e0" }}
+                    centerLabel="รายจ่ายรวม"
+                    emptyMessage="ไม่พบข้อมูลรายจ่ายสำหรับตัวกรองที่เลือก"
+                    height={200}
                   />
-                  <Legend wrapperStyle={{ color: "#cbd5e0" }} />
-                </PieChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-        </div>
+                )}
+              </Panel>
+            </div>
 
-        {/* Payment Status Pie Chart */}
-        <div className="bg-gray-800 rounded-lg border border-gray-700 p-4 sm:p-6">
-          <h2 className="text-base sm:text-xl font-semibold text-white mb-3 sm:mb-4">
-            สถานะการชำระค่าเช่า ({selectedYear === "all" ? "ทุกปี" : Number.parseInt(selectedYear) + 543}
-            {selectedMonth !== "all" && ` - ${MONTH_OPTIONS_REPORT.find((m) => m.value === selectedMonth)?.label}`})
-          </h2>
-          {paymentsLoading ? (
-            <div className="text-gray-400 text-center py-10">กำลังโหลดข้อมูล...</div>
-          ) : paymentStatusData.every((d) => d.value === 0) ? (
-            <div className="text-gray-400 text-center py-10">ไม่พบข้อมูลการชำระค่าเช่าสำหรับตัวกรองที่เลือก</div>
-          ) : (
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
+            {/* Payment Status */}
+            <Panel>
+              <PanelHeader title="สถานะการชำระค่าเช่า" description={periodLabel} icon={PieChartIcon} />
+              {paymentsLoading ? (
+                <ChartSkeleton height={220} />
+              ) : (
+                <CategoryDonut
                   data={paymentStatusData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  outerRadius={100}
-                  fill="#8884d8"
-                  dataKey="value"
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                >
-                  {paymentStatusData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  formatter={(value: number, name: string) => [`${value.toLocaleString()} รายการ`, name]}
-                  contentStyle={{ backgroundColor: "#2d3748", border: "none", borderRadius: "8px" }}
-                  labelStyle={{ color: "#cbd5e0" }}
-                  itemStyle={{ color: "#cbd5e0" }}
+                  centerLabel="ทั้งหมด"
+                  formatValue={(value) => `${Math.round(value).toLocaleString("th-TH")} รายการ`}
+                  emptyMessage="ไม่พบข้อมูลการชำระค่าเช่าสำหรับตัวกรองที่เลือก"
+                  height={200}
                 />
-                <Legend wrapperStyle={{ color: "#cbd5e0" }} />
-              </PieChart>
-            </ResponsiveContainer>
-          )}
-        </div>
+              )}
+            </Panel>
           </TabsContent>
 
           {/* Analysis Tab */}
           <TabsContent value="analysis" className="space-y-4 sm:space-y-6">
             {/* Installment vs Rent Analysis */}
-            <div className="bg-gray-800 rounded-lg border border-gray-700 p-4 sm:p-6">
-              <h2 className="text-base sm:text-xl font-semibold text-white mb-3 sm:mb-4 flex items-center gap-2">
-                <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-orange-400" />
+            <div className="bg-card rounded-lg border border-border p-4 sm:p-6">
+              <h2 className="text-base sm:text-xl font-semibold text-foreground mb-3 sm:mb-4 flex items-center gap-2">
+                <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-warning" />
                 <span className="hidden sm:inline">วิเคราะห์เงินออกเพิ่มต่อเดือน (ยอดผ่อน - ค่าเช่า)</span>
                 <span className="sm:hidden">เงินออกเพิ่ม/เดือน</span>
               </h2>
               
               {/* Summary Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
-                <div className="bg-gray-700/50 rounded-lg p-3 sm:p-4 border border-gray-600">
-                  <div className="text-xs sm:text-sm text-gray-400 mb-1">ยอดผ่อนรวม/เดือน</div>
-                  <div className="text-lg sm:text-xl font-bold text-white">฿{totalInstallment.toLocaleString()}</div>
+                <div className="bg-muted rounded-lg p-3 sm:p-4 border border-input">
+                  <div className="text-xs sm:text-sm text-muted-foreground mb-1">ยอดผ่อนรวม/เดือน</div>
+                  <div className="text-lg sm:text-xl font-bold text-foreground">฿{totalInstallment.toLocaleString()}</div>
                 </div>
-                <div className="bg-gray-700/50 rounded-lg p-3 sm:p-4 border border-gray-600">
-                  <div className="text-xs sm:text-sm text-gray-400 mb-1">ค่าเช่ารวม/เดือน</div>
-                  <div className="text-lg sm:text-xl font-bold text-green-400">฿{totalRent.toLocaleString()}</div>
+                <div className="bg-muted rounded-lg p-3 sm:p-4 border border-input">
+                  <div className="text-xs sm:text-sm text-muted-foreground mb-1">ค่าเช่ารวม/เดือน</div>
+                  <div className="text-lg sm:text-xl font-bold text-success">฿{totalRent.toLocaleString()}</div>
                 </div>
-                <div className={`rounded-lg p-3 sm:p-4 border ${totalDifference > 0 ? 'bg-red-900/30 border-red-700' : 'bg-green-900/30 border-green-700'}`}>
-                  <div className="text-xs sm:text-sm text-gray-400 mb-1">เงินออกเพิ่มรวม/เดือน</div>
-                  <div className={`text-lg sm:text-xl font-bold ${totalDifference > 0 ? 'text-red-400' : 'text-green-400'}`}>
+                <div className={`rounded-lg p-3 sm:p-4 border ${totalDifference > 0 ? 'bg-destructive-muted border-destructive/40' : 'bg-success-muted border-primary/40'}`}>
+                  <div className="text-xs sm:text-sm text-muted-foreground mb-1">เงินออกเพิ่มรวม/เดือน</div>
+                  <div className={`text-lg sm:text-xl font-bold ${totalDifference > 0 ? 'text-destructive' : 'text-success'}`}>
                     {totalDifference > 0 ? '+' : ''}฿{totalDifference.toLocaleString()}
                   </div>
                 </div>
@@ -515,13 +497,13 @@ export default function ReportsPage() {
 
               {/* Analysis Table */}
               {condosLoading || tenantsLoading ? (
-                <div className="text-gray-400 text-center py-10">กำลังโหลดข้อมูล...</div>
+                <div className="text-muted-foreground text-center py-10">กำลังโหลดข้อมูล...</div>
               ) : installmentAnalysis.length === 0 ? (
-                <div className="text-gray-400 text-center py-10">ไม่พบข้อมูลคอนโด</div>
+                <div className="text-muted-foreground text-center py-10">ไม่พบข้อมูลคอนโด</div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
-                    <thead className="bg-gray-700/50 text-gray-300">
+                    <thead className="bg-muted text-foreground">
                       <tr>
                         <th className="px-4 py-3 text-left">คอนโด</th>
                         <th className="px-4 py-3 text-left">ผู้เช่า</th>
@@ -530,32 +512,32 @@ export default function ReportsPage() {
                         <th className="px-4 py-3 text-right">เงินออกเพิ่ม/เดือน</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-700">
+                    <tbody className="divide-y divide-border">
                       {installmentAnalysis.map((item) => (
-                        <tr key={item.condoId} className="hover:bg-gray-700/30 transition-colors">
+                        <tr key={item.condoId} className="hover:bg-accent/30 transition-colors">
                           <td className="px-4 py-3">
-                            <div className="font-medium text-white">{item.condoName}</div>
-                            <div className="text-xs text-gray-400">ห้อง {item.roomNumber}</div>
+                            <div className="font-medium text-foreground">{item.condoName}</div>
+                            <div className="text-xs text-muted-foreground">ห้อง {item.roomNumber}</div>
                           </td>
                           <td className="px-4 py-3">
                             {item.hasTenant ? (
-                              <span className="text-green-400">{item.tenantName}</span>
+                              <span className="text-success">{item.tenantName}</span>
                             ) : (
-                              <span className="text-yellow-400">ว่าง</span>
+                              <span className="text-warning">ว่าง</span>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-right text-white">
+                          <td className="px-4 py-3 text-right text-foreground">
                             ฿{item.installment.toLocaleString()}
                           </td>
                           <td className="px-4 py-3 text-right">
                             {item.hasTenant ? (
-                              <span className="text-green-400">฿{item.rent.toLocaleString()}</span>
+                              <span className="text-success">฿{item.rent.toLocaleString()}</span>
                             ) : (
-                              <span className="text-gray-500">-</span>
+                              <span className="text-muted-foreground">-</span>
                             )}
                           </td>
                           <td className="px-4 py-3 text-right">
-                            <span className={`font-medium ${item.difference > 0 ? 'text-red-400' : item.difference < 0 ? 'text-green-400' : 'text-gray-400'}`}>
+                            <span className={`font-medium ${item.difference > 0 ? 'text-destructive' : item.difference < 0 ? 'text-success' : 'text-muted-foreground'}`}>
                               {item.difference > 0 ? '+' : ''}{item.difference === 0 ? '-' : `฿${item.difference.toLocaleString()}`}
                             </span>
                           </td>
@@ -567,10 +549,10 @@ export default function ReportsPage() {
               )}
 
               {/* Note */}
-              <div className="mt-4 text-xs text-gray-500 bg-gray-700/30 rounded-lg p-3">
+              <div className="mt-4 text-xs text-muted-foreground bg-muted/30 rounded-lg p-3">
                 <strong>หมายเหตุ:</strong> แสดงเฉพาะผู้เช่าที่กำลังเช่าอยู่ (Active) • 
-                <span className="text-red-400">สีแดง</span> = ต้องออกเงินเพิ่ม • 
-                <span className="text-green-400">สีเขียว</span> = มีกำไร/เหลือเก็บ
+                <span className="text-destructive">สีแดง</span> = ต้องออกเงินเพิ่ม • 
+                <span className="text-success">สีเขียว</span> = มีกำไร/เหลือเก็บ
               </div>
             </div>
           </TabsContent>

@@ -32,18 +32,18 @@ export function ConfirmationModal({
     switch (type) {
       case "danger":
         return {
-          icon: "text-red-500",
-          button: "bg-red-600 hover:bg-red-700",
+          icon: "text-destructive",
+          button: "bg-destructive hover:bg-destructive/90",
         };
       case "warning":
         return {
-          icon: "text-yellow-500",
-          button: "bg-yellow-600 hover:bg-yellow-700",
+          icon: "text-warning",
+          button: "bg-warning hover:bg-warning/90",
         };
       default:
         return {
-          icon: "text-blue-500",
-          button: "bg-blue-600 hover:bg-blue-700",
+          icon: "text-info",
+          button: "bg-info hover:bg-info/90",
         };
     }
   };
@@ -63,13 +63,13 @@ export function ConfirmationModal({
           className="fixed inset-0 bg-black bg-opacity-50"
           onClick={handleClose}
         />
-        <div className="relative bg-gray-800 rounded-lg shadow-xl w-full max-w-md border border-gray-700">
-          <div className="flex items-center justify-between p-6 border-b border-gray-700">
-            <h3 className="text-lg font-medium text-white">{title}</h3>
+        <div className="relative bg-card rounded-lg shadow-xl w-full max-w-md border border-border">
+          <div className="flex items-center justify-between p-6 border-b border-border">
+            <h3 className="text-lg font-medium text-foreground">{title}</h3>
             <button
               onClick={handleClose}
               disabled={isLoading}
-              className="text-gray-400 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <X className="h-5 w-5" />
             </button>
@@ -77,20 +77,20 @@ export function ConfirmationModal({
           <div className="p-6">
             <div className="flex items-center mb-4">
               <AlertTriangle className={`h-6 w-6 mr-3 ${styles.icon}`} />
-              <p className="text-gray-300">{message}</p>
+              <p className="text-foreground">{message}</p>
             </div>
             <div className="flex justify-end space-x-3">
               <button
                 onClick={handleClose}
                 disabled={isLoading}
-                className="px-4 py-2 border border-red-500 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 border border-destructive text-destructive rounded-lg hover:bg-destructive/90 hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {cancelText}
               </button>
               <button
                 onClick={onConfirm}
                 disabled={isLoading}
-                className={`px-4 py-2 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center ${styles.button}`}
+                className={`px-4 py-2 text-foreground rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center ${styles.button}`}
               >
                 {isLoading ? (
                   <>

@@ -16,18 +16,27 @@ import {
   File,
   AlertCircle,
   Loader2,
+  Wallet,
 } from "lucide-react";
 import { MainLayout } from "@/components/layout/main-layout";
+import { fieldClass } from "@/components/ui/field";
+import { PageHeader } from "@/components/ui/page-header";
 import { DataTable } from "@/components/ui/data-table";
-import { Notification } from "@/components/ui/notification";
+import { useNotification } from "@/lib/hooks/use-notification";
 import { StatsCard } from "@/components/ui/stats-card";
 import { Modal } from "@/components/ui/modal";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal"; // Import ConfirmationModal
 import { DocumentPreview } from "@/components/ui/document-preview"; // Import DocumentPreview
 import { ImageCompressInput } from "@/components/ui/image-compress-input"; // Import ImageCompressInput
 import { DatePicker } from "@/components/ui/date-picker";
-import { useCondos, useTenants, useFinancialRecords } from "@/lib/hooks/use-queries";
-import { useDocumentsDB } from "@/lib/hooks/use-database";
+import {
+  useCondos,
+  useTenants,
+  useFinancialRecords,
+  useDocuments,
+  useDataInvalidation,
+} from "@/lib/hooks/use-queries";
+
 import { useAuth } from "@/lib/auth-context";
 import type { IncomeRecord, ExpenseRecord } from "@/lib/supabase";
 import {
@@ -96,8 +105,10 @@ export default function FinancialsPage() {
     incomeRecords,
     expenseRecords,
     loading,
-    refetch: refetchFinancials,
   } = useFinancialRecords(user?.id);
+  const { afterFinancialChange, afterDocumentChange } = useDataInvalidation(
+    user?.id,
+  );
 
   const pickTenantIdForCondo = useCallback(
     (condoId?: string) => {
@@ -127,10 +138,7 @@ export default function FinancialsPage() {
   // Category filter states for each table
   const [selectedIncomeCategory, setSelectedIncomeCategory] = useState<string>("");
   const [selectedExpenseCategory, setSelectedExpenseCategory] = useState<string>("");
-  const [notification, setNotification] = useState<{
-    message: string;
-    type: "success" | "error";
-  } | null>(null);
+  const { setNotification, notificationElement } = useNotification();
   // Document states (for financial records - though schema limitation exists)
   const [isFileModalOpen, setIsFileModalOpen] = useState(false);
   const [selectedFinancialRecordForFile, setSelectedFinancialRecordForFile] =
@@ -143,8 +151,7 @@ export default function FinancialsPage() {
   const {
     documents,
     loading: documentsLoading,
-    refetch: refetchDocuments,
-  } = useDocumentsDB({
+  } = useDocuments({
     incomeId: isIncome
       ? (selectedFinancialRecordForFile as IncomeRecord).id
       : undefined,
@@ -251,7 +258,7 @@ export default function FinancialsPage() {
           if (!result.success) throw new Error(result.message);
         }
         setNotification({ message: `บันทึกสำเร็จ`, type: "success" });
-        refetchFinancials();
+        afterFinancialChange();
       } else {
         if (recordType === "income") {
           const result = await createIncomeAction(recordData);
@@ -261,7 +268,7 @@ export default function FinancialsPage() {
           if (!result.success) throw new Error(result.message);
         }
         setNotification({ message: `บันทึกสำเร็จ`, type: "success" });
-        refetchFinancials();
+        afterFinancialChange();
       }
       resetForm();
     } catch (error: any) {
@@ -392,7 +399,6 @@ export default function FinancialsPage() {
     setUploadedFiles([]);
     setDocumentType("");
     setIsFileModalOpen(true);
-    refetchDocuments();
   };
 
   const handleFileSubmit = async () => {
@@ -442,7 +448,7 @@ export default function FinancialsPage() {
       setUploadedFiles([]);
       setDocumentType("");
       setIsFileModalOpen(false);
-      refetchDocuments();
+      afterDocumentChange();
     } catch (error: any) {
       console.error("Error uploading files:", error);
       setNotification({
@@ -478,7 +484,7 @@ export default function FinancialsPage() {
         message: `เอกสาร "${docToDelete.name}" ถูกลบแล้ว`,
         type: "success",
       });
-      refetchDocuments();
+      afterDocumentChange();
     } catch (error: any) {
       console.error("Error deleting document:", error);
       setNotification({
@@ -513,7 +519,7 @@ export default function FinancialsPage() {
           if (!result.success) throw new Error(result.message);
         }
         setNotification({ message: `ลบสำเร็จ`, type: "success" });
-        refetchFinancials();
+        afterFinancialChange();
       } catch (error: any) {
         console.error("Error deleting record:", error);
         setNotification({ message: `การลบเกิดผิดพลาด: ${error.message || ""}`, type: "error" });
@@ -565,7 +571,7 @@ export default function FinancialsPage() {
             <div className="font-medium">
               {new Date(record.date).toLocaleDateString("th-TH")}
             </div>
-            <div className="text-sm text-gray-400">
+            <div className="text-sm text-muted-foreground">
               {condo ? `${condo.name} (${condo.room_number})` : "ไม่ทราบคอนโด"}
             </div>
           </div>
@@ -580,7 +586,7 @@ export default function FinancialsPage() {
       key: "amount",
       header: "จำนวนเงิน",
       render: (record: IncomeRecord) => (
-        <span className="text-green-400 font-medium">
+        <span className="text-success font-medium">
           ฿{record.amount.toLocaleString()}
         </span>
       ),
@@ -601,14 +607,14 @@ export default function FinancialsPage() {
         <div className="flex space-x-2">
           <button
             onClick={() => openModal("income", record)}
-            className="text-blue-400 hover:text-blue-300"
+            className="text-info hover:text-info"
             title="แก้ไข"
           >
             <Edit className="h-4 w-4" />
           </button>
           <button
             onClick={() => openFileModal(record, "income")} // ✅ ส่ง "income"
-            className="text-green-400 hover:text-green-300"
+            className="text-success hover:text-success"
             title="แนบไฟล์"
           >
             <FileText className="h-4 w-4" />
@@ -617,7 +623,7 @@ export default function FinancialsPage() {
             onClick={() =>
               handleDeleteConfirm(record.id, "income", record.type)
             }
-            className="text-red-400 hover:text-red-300"
+            className="text-destructive hover:text-destructive"
             title="ลบ"
           >
             <X className="h-4 w-4" />
@@ -639,7 +645,7 @@ export default function FinancialsPage() {
             <div className="font-medium">
               {new Date(record.date).toLocaleDateString("th-TH")}
             </div>
-            <div className="text-sm text-gray-400">
+            <div className="text-sm text-muted-foreground">
               {condo ? `${condo.name} (${condo.room_number})` : "ไม่ทราบคอนโด"}
             </div>
           </div>
@@ -654,7 +660,7 @@ export default function FinancialsPage() {
       key: "amount",
       header: "จำนวนเงิน",
       render: (record: ExpenseRecord) => (
-        <span className="text-red-400 font-medium">
+        <span className="text-destructive font-medium">
           ฿{record.amount.toLocaleString()}
         </span>
       ),
@@ -675,14 +681,14 @@ export default function FinancialsPage() {
         <div className="flex space-x-2">
           <button
             onClick={() => openModal("expense", record)}
-            className="text-blue-400 hover:text-blue-300"
+            className="text-info hover:text-info"
             title="แก้ไข"
           >
             <Edit className="h-4 w-4" />
           </button>
           <button
             onClick={() => openFileModal(record, "expense")} // ✅ ส่ง "expense"
-            className="text-green-400 hover:text-green-300"
+            className="text-success hover:text-success"
             title="แนบไฟล์"
           >
             <FileText className="h-4 w-4" />
@@ -692,7 +698,7 @@ export default function FinancialsPage() {
             onClick={() =>
               handleDeleteConfirm(record.id, "expense", record.type)
             }
-            className="text-red-400 hover:text-red-300"
+            className="text-destructive hover:text-destructive"
             title="ลบ"
           >
             <X className="h-4 w-4" />
@@ -708,33 +714,23 @@ export default function FinancialsPage() {
     <MainLayout>
       <div className="space-y-4 sm:space-y-6">
         {/* Notification */}
-        {notification && (
-          <Notification
-            message={notification.message}
-            type={notification.type}
-            onClose={() => setNotification(null)}
-          />
-        )}
+        {notificationElement}
 
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-white">การเงิน</h1>
-            <p className="text-sm sm:text-base text-gray-400">
-              ติดตามรายรับและรายจ่ายสำหรับอสังหาริมทรัพย์ของคุณ
-            </p>
-          </div>
-          <div className="flex space-x-3">
+        <PageHeader
+          title="การเงิน"
+          description="ติดตามรายรับและรายจ่ายสำหรับอสังหาริมทรัพย์ของคุณ"
+          icon={Wallet}
+          actions={
             <button
               onClick={() => openModal("income")}
-              className="flex items-center px-3 py-2 sm:px-4 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors shadow-lg shadow-green-900/20 text-sm"
+              className="flex items-center px-3 py-2 sm:px-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors text-sm"
             >
               <Plus className="h-4 w-4 mr-1 sm:mr-2" />
               <span className="hidden sm:inline">เพิ่มรายการ</span>
               <span className="sm:hidden">เพิ่ม</span>
             </button>
-          </div>
-        </div>
+          }
+        />
 
         {/* Financial Summary */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
@@ -761,17 +757,17 @@ export default function FinancialsPage() {
         </div>
 
         {/* Filters */}
-        <div className="bg-gray-800 rounded-lg border border-gray-700 p-3 sm:p-4">
+        <div className="bg-card rounded-lg border border-border p-3 sm:p-4">
           <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-            <Filter className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 hidden sm:block" />
+            <Filter className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground hidden sm:block" />
             <div className="flex items-center gap-1 sm:gap-2">
-              <label className="text-xs sm:text-sm font-medium text-gray-300">
+              <label className="text-xs sm:text-sm font-medium text-foreground" htmlFor="financials-f1">
                 คอนโด:
               </label>
-              <select
+              <select id="financials-f1"
                 value={selectedCondoFilter}
                 onChange={(e) => setSelectedCondoFilter(e.target.value)}
-                className="px-2 py-1 sm:px-3 bg-gray-700 border border-gray-600 rounded text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-green-500 max-w-[100px] sm:max-w-none"
+                className="px-2 py-1 sm:px-3 bg-muted border border-input rounded text-foreground text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-ring max-w-[100px] sm:max-w-none"
               >
                 <option value="">ทั้งหมด</option>
                 {condos.map((condo) => (
@@ -782,13 +778,13 @@ export default function FinancialsPage() {
               </select>
             </div>
             <div className="flex items-center gap-1 sm:gap-2">
-              <label className="text-xs sm:text-sm font-medium text-gray-300">
+              <label className="text-xs sm:text-sm font-medium text-foreground" htmlFor="financials-f2">
                 ปี:
               </label>
-              <select
+              <select id="financials-f2"
                 value={selectedYear}
                 onChange={(e) => setSelectedYear(e.target.value)}
-                className="px-2 py-1 sm:px-3 bg-gray-700 border border-gray-600 rounded text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="px-2 py-1 sm:px-3 bg-muted border border-input rounded text-foreground text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               >
                 <option value="">ทุกปี</option>
                 {yearOptions.map((year) => (
@@ -799,13 +795,13 @@ export default function FinancialsPage() {
               </select>
             </div>
             <div className="flex items-center gap-1 sm:gap-2">
-              <label className="text-xs sm:text-sm font-medium text-gray-300">
+              <label className="text-xs sm:text-sm font-medium text-foreground" htmlFor="financials-f3">
                 เดือน:
               </label>
-              <select
+              <select id="financials-f3"
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(e.target.value)}
-                className="px-2 py-1 sm:px-3 bg-gray-700 border border-gray-600 rounded text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="px-2 py-1 sm:px-3 bg-muted border border-input rounded text-foreground text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               >
                 <option value="">ทุกเดือน</option>
                 {MONTH_OPTIONS.map((month) => (
@@ -815,7 +811,7 @@ export default function FinancialsPage() {
                 ))}
               </select>
             </div>
-            <span className="text-xs sm:text-sm text-gray-400 w-full sm:w-auto">
+            <span className="text-xs sm:text-sm text-muted-foreground w-full sm:w-auto">
               พบ {filteredIncomeRecords.length + filteredExpenseRecords.length}{" "}
               รายการ
             </span>
@@ -825,14 +821,14 @@ export default function FinancialsPage() {
         {/* Income Records */}
         <div className="space-y-3 sm:space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <h2 className="text-lg sm:text-xl font-semibold text-white">รายการรายรับ</h2>
+            <h2 className="text-lg sm:text-xl font-semibold text-foreground">รายการรายรับ</h2>
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="flex items-center gap-2">
-                <label className="text-sm text-gray-400">หมวดหมู่:</label>
-                <select
+                <label className="text-sm text-muted-foreground" htmlFor="financials-f4">หมวดหมู่:</label>
+                <select id="financials-f4"
                   value={selectedIncomeCategory}
                   onChange={(e) => setSelectedIncomeCategory(e.target.value)}
-                  className="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="px-2 py-1 bg-muted border border-input rounded text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 >
                   <option value="">ทั้งหมด</option>
                   {INCOME_CATEGORIES.map((cat) => (
@@ -842,7 +838,7 @@ export default function FinancialsPage() {
                   ))}
                 </select>
               </div>
-              <span className="text-sm text-gray-400">
+              <span className="text-sm text-muted-foreground">
                 {filteredIncomeRecords.length} รายการ
               </span>
             </div>
@@ -860,14 +856,14 @@ export default function FinancialsPage() {
         {/* Expense Records */}
         <div className="space-y-3 sm:space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <h2 className="text-lg sm:text-xl font-semibold text-white">รายการรายจ่าย</h2>
+            <h2 className="text-lg sm:text-xl font-semibold text-foreground">รายการรายจ่าย</h2>
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="flex items-center gap-2">
-                <label className="text-sm text-gray-400">หมวดหมู่:</label>
-                <select
+                <label className="text-sm text-muted-foreground" htmlFor="financials-f5">หมวดหมู่:</label>
+                <select id="financials-f5"
                   value={selectedExpenseCategory}
                   onChange={(e) => setSelectedExpenseCategory(e.target.value)}
-                  className="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="px-2 py-1 bg-muted border border-input rounded text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 >
                   <option value="">ทั้งหมด</option>
                   {EXPENSE_CATEGORIES.map((cat) => (
@@ -877,7 +873,7 @@ export default function FinancialsPage() {
                   ))}
                 </select>
               </div>
-              <span className="text-sm text-gray-400">
+              <span className="text-sm text-muted-foreground">
                 {filteredExpenseRecords.length} รายการ
               </span>
             </div>
@@ -915,11 +911,11 @@ export default function FinancialsPage() {
                   }}
                   className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all duration-200 ${
                     recordType === "income"
-                      ? "border-green-500 bg-green-500/10 text-green-400 shadow-md shadow-green-900/10"
-                      : "border-gray-700 bg-gray-800/50 text-gray-500 hover:border-gray-600 hover:bg-gray-800"
+                      ? "border-primary bg-success-muted text-success"
+                      : "border-border bg-surface-raised text-muted-foreground hover:border-border-strong hover:bg-accent"
                   }`}
                 >
-                  <div className={`p-2 rounded-full mb-2 ${recordType === "income" ? "bg-green-500/20" : "bg-gray-700"}`}>
+                  <div className={`p-2 rounded-full mb-2 ${recordType === "income" ? "bg-success-muted" : "bg-muted"}`}>
                     <TrendingUp className="h-5 w-5" />
                   </div>
                   <span className="font-medium text-base">รายรับ</span>
@@ -933,11 +929,11 @@ export default function FinancialsPage() {
                   }}
                   className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all duration-200 ${
                     recordType === "expense"
-                      ? "border-red-500 bg-red-500/10 text-red-400 shadow-md shadow-red-900/10"
-                      : "border-gray-700 bg-gray-800/50 text-gray-500 hover:border-gray-600 hover:bg-gray-800"
+                      ? "border-destructive bg-destructive-muted text-destructive"
+                      : "border-border bg-surface-raised text-muted-foreground hover:border-border-strong hover:bg-accent"
                   }`}
                 >
-                  <div className={`p-2 rounded-full mb-2 ${recordType === "expense" ? "bg-red-500/20" : "bg-gray-700"}`}>
+                  <div className={`p-2 rounded-full mb-2 ${recordType === "expense" ? "bg-destructive-muted" : "bg-muted"}`}>
                     <TrendingDown className="h-5 w-5" />
                   </div>
                   <span className="font-medium text-base">รายจ่าย</span>
@@ -945,10 +941,10 @@ export default function FinancialsPage() {
               </div>
             )}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
-                คอนโด <span className="text-red-500">*</span>
+              <label className="block text-sm font-medium text-foreground mb-1" htmlFor="financials-f6">
+                คอนโด <span className="text-destructive">*</span>
               </label>
-              <select
+              <select id="financials-f6"
                 value={formData.condo_id}
                 onChange={(e) => {
                   const nextCondoId = e.target.value;
@@ -959,7 +955,7 @@ export default function FinancialsPage() {
                   }));
                   if (formErrors.condo_id) setFormErrors({ ...formErrors, condo_id: undefined });
                 }}
-                className={`w-full px-3 py-2 bg-gray-700 border rounded-md text-white focus:outline-none focus:ring-2 ${formErrors.condo_id ? 'border-red-500 focus:ring-red-500' : 'border-gray-600 focus:ring-green-500'}`}
+                className={fieldClass(!!formErrors.condo_id)}
               >
                 <option value="">เลือกคอนโด</option>
                 {condos.map((condo) => (
@@ -969,7 +965,7 @@ export default function FinancialsPage() {
                 ))}
               </select>
               {formErrors.condo_id && (
-                <div className="flex items-center mt-1 text-red-400 text-xs">
+                <div className="flex items-center mt-1 text-destructive text-xs">
                   <AlertCircle className="w-3 h-3 mr-1" />
                   {formErrors.condo_id}
                 </div>
@@ -978,17 +974,17 @@ export default function FinancialsPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
-                  หัวข้อ <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-foreground mb-1" htmlFor="financials-f7">
+                  หัวข้อ <span className="text-destructive">*</span>
                 </label>
-                <input
+                <input id="financials-f7"
                   type="text"
                   value={formData.type}
                   onChange={(e) => {
                     setFormData({ ...formData, type: e.target.value });
                     if (formErrors.type) setFormErrors({ ...formErrors, type: undefined });
                   }}
-                  className={`w-full px-3 py-2 bg-gray-700 border rounded-md text-white focus:outline-none focus:ring-2 ${formErrors.type ? 'border-red-500 focus:ring-red-500' : 'border-gray-600 focus:ring-green-500'}`}
+                  className={fieldClass(!!formErrors.type)}
                   placeholder={
                     recordType === "income"
                       ? "เช่น ค่าเช่ารายเดือน"
@@ -996,23 +992,23 @@ export default function FinancialsPage() {
                   }
                 />
                 {formErrors.type && (
-                  <div className="flex items-center mt-1 text-red-400 text-xs">
+                  <div className="flex items-center mt-1 text-destructive text-xs">
                     <AlertCircle className="w-3 h-3 mr-1" />
                     {formErrors.type}
                   </div>
                 )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
-                  หมวดหมู่ <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-foreground mb-1" htmlFor="financials-f8">
+                  หมวดหมู่ <span className="text-destructive">*</span>
                 </label>
-                <select
+                <select id="financials-f8"
                   value={formData.category}
                   onChange={(e) => {
                     setFormData({ ...formData, category: e.target.value });
                     if (formErrors.category) setFormErrors({ ...formErrors, category: undefined });
                   }}
-                  className={`w-full px-3 py-2 bg-gray-700 border rounded-md text-white focus:outline-none focus:ring-2 ${formErrors.category ? 'border-red-500 focus:ring-red-500' : 'border-gray-600 focus:ring-green-500'}`}
+                  className={fieldClass(!!formErrors.category)}
                 >
                   <option value="">เลือกหมวดหมู่</option>
                   {(recordType === "income"
@@ -1025,7 +1021,7 @@ export default function FinancialsPage() {
                   ))}
                 </select>
                 {formErrors.category && (
-                  <div className="flex items-center mt-1 text-red-400 text-xs">
+                  <div className="flex items-center mt-1 text-destructive text-xs">
                     <AlertCircle className="w-3 h-3 mr-1" />
                     {formErrors.category}
                   </div>
@@ -1035,8 +1031,8 @@ export default function FinancialsPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
-                  จำนวนเงิน (บาท) <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-foreground mb-1" htmlFor="financials-f9">
+                  จำนวนเงิน (บาท) <span className="text-destructive">*</span>
                 </label>
                 <NumericFormat
                   thousandSeparator=","
@@ -1047,19 +1043,19 @@ export default function FinancialsPage() {
                     setFormData({ ...formData, amount: values.value });
                     if (formErrors.amount) setFormErrors({ ...formErrors, amount: undefined });
                   }}
-                  className={`w-full px-3 py-2 bg-gray-700 border rounded-md text-white focus:outline-none focus:ring-2 ${formErrors.amount ? 'border-red-500 focus:ring-red-500' : 'border-gray-600 focus:ring-green-500'}`}
+                  className={fieldClass(!!formErrors.amount)}
                   placeholder="0.00"
                 />
                 {formErrors.amount && (
-                  <div className="flex items-center mt-1 text-red-400 text-xs">
+                  <div className="flex items-center mt-1 text-destructive text-xs">
                     <AlertCircle className="w-3 h-3 mr-1" />
                     {formErrors.amount}
                   </div>
                 )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
-                  วันที่ <span className="text-red-500">*</span>
+                <label htmlFor="date" className="block text-sm font-medium text-foreground mb-1">
+                  วันที่ <span className="text-destructive">*</span>
                 </label>
                 <DatePicker
                   id="date"
@@ -1076,15 +1072,15 @@ export default function FinancialsPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
+              <label htmlFor="financials-f9" className="block text-sm font-medium text-foreground mb-1">
                 รายละเอียด
               </label>
-              <textarea
+              <textarea id="financials-f9"
                 value={formData.description}
                 onChange={(e) =>
                   setFormData({ ...formData, description: e.target.value })
                 }
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                className={fieldClass()}
                 rows={3}
                 placeholder="รายละเอียดเพิ่มเติม..."
               />
@@ -1095,14 +1091,14 @@ export default function FinancialsPage() {
                 type="button"
                 onClick={resetForm}
                 disabled={isSaving}
-                className="px-4 py-2 border border-red-500 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 border border-destructive text-destructive rounded-lg hover:bg-destructive/90 hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 ยกเลิก
               </button>
               <button
                 type="submit"
                 disabled={isSaving}
-                className="px-4 py-2 text-white rounded-lg transition-colors bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                className="px-4 py-2 text-primary-foreground rounded-lg transition-colors bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
               >
                 {isSaving ? (
                   <>
@@ -1132,19 +1128,19 @@ export default function FinancialsPage() {
           size="lg"
         >
           <div className="space-y-4">
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-muted-foreground">
               เอกสารจะถูกผูกกับ
               {recordType === "income" ? "รายการรายรับ" : "รายการรายจ่าย"}นี้
             </p>
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-foreground mb-1" htmlFor="financials-f10">
                 ประเภทเอกสาร *
               </label>
-              <select
+              <select id="financials-f10"
                 required
                 value={documentType}
                 onChange={(e) => setDocumentType(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                className={fieldClass()}
               >
                 <option value="">เลือกประเภทเอกสาร</option>
                 {DOCUMENT_TYPES.map((type) => (
@@ -1187,13 +1183,13 @@ export default function FinancialsPage() {
                   setUploadedFiles([]);
                   setDocumentType("");
                 }}
-                className="px-4 py-2 border border-red-500 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-colors"
+                className="px-4 py-2 border border-destructive text-destructive rounded-lg hover:bg-destructive/90 hover:text-foreground transition-colors"
               >
                 ยกเลิก
               </button>
               <button
                 onClick={handleFileSubmit}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={
                   uploadedFiles.length === 0 || !documentType || isUploading
                 }

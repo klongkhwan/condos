@@ -17,18 +17,28 @@ import {
   Trash,
   AlertCircle,
   Loader2,
+  CreditCard,
 } from "lucide-react";
 import { MainLayout } from "@/components/layout/main-layout";
+import { fieldClass } from "@/components/ui/field";
+import { PageHeader } from "@/components/ui/page-header";
+import { MetricCard } from "@/components/ui/metric-card";
 import { DataTable } from "@/components/ui/data-table";
 import { Modal } from "@/components/ui/modal";
-import { Notification } from "@/components/ui/notification"; // Import Notification
+import { useNotification } from "@/lib/hooks/use-notification";
 // Import ConfirmationModal
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import { DocumentPreview } from "@/components/ui/document-preview"; // Import DocumentPreview
 import { ImageCompressInput } from "@/components/ui/image-compress-input"; // Import ImageCompressInput
 import { DatePicker } from "@/components/ui/date-picker";
-import { useCondos, useTenants, useRentPayments } from "@/lib/hooks/use-queries";
-import { useDocumentsDB } from "@/lib/hooks/use-database"; // Import useDocumentsDB
+import {
+  useCondos,
+  useTenants,
+  useRentPayments,
+  useDocuments,
+  useDataInvalidation,
+} from "@/lib/hooks/use-queries";
+
 import { useAuth } from "@/lib/auth-context";
 import type { RentPayment } from "@/lib/supabase";
 import {
@@ -72,10 +82,12 @@ export default function RentPage() {
   const {
     payments,
     loading,
-    refetch: refetchPayments,
   } = useRentPayments(user?.id);
   const { condos } = useCondos(user?.id);
   const { tenants } = useTenants(user?.id);
+  const { afterPaymentChange, afterDocumentChange } = useDataInvalidation(
+    user?.id,
+  );
   const [isCreatePaymentModalOpen, setIsCreatePaymentModalOpen] =
     useState(false);
   const [isEditPaymentModalOpen, setIsEditPaymentModalOpen] = useState(false); // New state for edit modal
@@ -91,8 +103,7 @@ export default function RentPage() {
   const {
     documents: paymentDocuments,
     loading: paymentDocumentsLoading,
-    refetch: refetchPaymentDocuments,
-  } = useDocumentsDB({
+  } = useDocuments({
     paymentId: selectedPayment?.id,
     documentType: "payment_receipt",
   });
@@ -156,10 +167,7 @@ export default function RentPage() {
   }, []);
 
   // Notification state
-  const [notification, setNotification] = useState<{
-    message: string;
-    type: "success" | "error";
-  } | null>(null);
+  const { setNotification, notificationElement } = useNotification();
 
   // Form data for creating/editing payment record
   const [formData, setFormData] = useState({
@@ -222,7 +230,7 @@ export default function RentPage() {
             message: "ลบรายการชำระเงินสำเร็จ",
             type: "success",
           });
-          refetchPayments(); // Refetch data after deletion to update local state
+          afterPaymentChange();
         } else {
           setNotification({
             message: result.message || "เกิดข้อผิดพลาดในการลบรายการชำระเงิน",
@@ -330,7 +338,6 @@ export default function RentPage() {
     });
     setUploadedFiles([]); // Clear files for edit, user will re-upload if needed
     setIsEditPaymentModalOpen(true);
-    refetchPaymentDocuments(); // Refetch documents for the selected payment's condo
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -413,7 +420,7 @@ export default function RentPage() {
           setNotification({ message: `บันทึกสำเร็จ`, type: "success" });
         }
         
-        refetchPayments(); // Refresh data after save
+        afterPaymentChange(); // Refresh data after save
       } else {
         setNotification({
           message: result.message || "เกิดข้อผิดพลาดในการบันทึกรายการชำระเงิน",
@@ -460,7 +467,7 @@ export default function RentPage() {
         message: `เอกสาร "${rentDocToDelete.name}" ถูกลบแล้ว`,
         type: "success",
       });
-      refetchPaymentDocuments(); // รีเฟรชรายการเอกสารของ rent
+      afterDocumentChange(); // รีเฟรชรายการเอกสารของ rent
     } catch (error: any) {
       console.error("Error deleting document:", error);
       setNotification({
@@ -478,11 +485,11 @@ export default function RentPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "paid":
-        return "bg-green-900 text-green-300";
+        return "bg-success-muted text-success";
       case "overdue":
-        return "bg-red-900 text-red-300";
+        return "bg-destructive-muted text-destructive";
       default:
-        return "bg-yellow-900 text-yellow-300";
+        return "bg-warning-muted text-warning";
     }
   };
 
@@ -518,7 +525,7 @@ export default function RentPage() {
         return (
           <div>
             <div className="font-medium">{tenant?.full_name || "ไม่ทราบ"}</div>
-            <div className="text-sm text-gray-400">
+            <div className="text-sm text-muted-foreground">
               {condo ? `${condo.name} (${condo.room_number})` : "ไม่ทราบคอนโด"}
             </div>
           </div>
@@ -545,9 +552,9 @@ export default function RentPage() {
 
         let textColor = "";
         if (isOverdue) {
-          textColor = "text-red-400";
+          textColor = "text-destructive";
         } else if (isNearDue) {
-          textColor = "text-yellow-400";
+          textColor = "text-warning";
         }
 
         return (
@@ -591,14 +598,14 @@ export default function RentPage() {
         <div className="flex space-x-2">
           <button
             onClick={() => handleOpenEditModal(payment)}
-            className="text-blue-400 hover:text-blue-300"
+            className="text-info hover:text-info"
             title="แก้ไข"
           >
             <Edit className="h-4 w-4" />
           </button>
           <button
             onClick={() => handleDeleteClick(payment)}
-            className="text-red-400 hover:text-red-300"
+            className="text-destructive hover:text-destructive"
             title="ลบ"
           >
             <X className="h-4 w-4" />
@@ -607,7 +614,7 @@ export default function RentPage() {
         // <div className="flex space-x-2">
         //   <button
         //     onClick={() => handleOpenEditModal(payment)}
-        //     className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors"
+        //     className="px-3 py-1 bg-info hover:bg-info/90 text-info-foreground text-xs rounded transition-colors"
         //     title="แก้ไขรายการ"
         //   >
         //     <Edit className="h-4 w-4 mr-1" />
@@ -616,7 +623,7 @@ export default function RentPage() {
         //   {/* Add Delete Button */}
         //   <button
         //     onClick={() => handleDeleteClick(payment)}
-        //     className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors"
+        //     className="px-3 py-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground text-xs rounded transition-colors"
         //     title="ลบรายการ"
         //   >
         //     <Trash className="h-4 w-4 mr-1" />
@@ -642,88 +649,54 @@ export default function RentPage() {
     <MainLayout>
       <div className="space-y-4 sm:space-y-6">
         {/* Notification */}
-        {notification && (
-          <Notification
-            message={notification.message}
-            type={notification.type}
-            onClose={() => setNotification(null)}
-          />
-        )}
+        {notificationElement}
 
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-white">จัดการค่าเช่า</h1>
-            <p className="text-sm sm:text-base text-gray-400">ติดตามและจัดการการชำระค่าเช่า</p>
-          </div>
-          <button
-            onClick={handleOpenCreateModal}
-            className="flex items-center px-3 py-2 sm:px-4 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm"
-          >
-            <Plus className="h-4 w-4 mr-1 sm:mr-2" />
-            <span className="hidden sm:inline">เพิ่มรายการค่าเช่า</span>
-            <span className="sm:hidden">เพิ่ม</span>
-          </button>
-        </div>
+        <PageHeader
+          title="จัดการค่าเช่า"
+          description="ติดตามและจัดการการชำระค่าเช่า"
+          icon={CreditCard}
+          actions={
+            <button
+              onClick={handleOpenCreateModal}
+              className="flex items-center px-3 py-2 sm:px-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors text-sm"
+            >
+              <Plus className="h-4 w-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">เพิ่มรายการค่าเช่า</span>
+              <span className="sm:hidden">เพิ่ม</span>
+            </button>
+          }
+        />
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
-          <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-3 sm:p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm font-medium text-yellow-300">
-                  ยังไม่ชำระ
-                </p>
-                <p className="text-xl sm:text-2xl font-bold text-white">
-                  {unpaidPaymentsCount}
-                </p>
-              </div>
-              <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-500 hidden sm:block" />
-            </div>
-          </div>
-
-          <div className="bg-red-900/20 border border-red-700 rounded-lg p-3 sm:p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm font-medium text-red-300">เกินกำหนด</p>
-                <p className="text-xl sm:text-2xl font-bold text-white">
-                  {overduePaymentsCount}
-                </p>
-              </div>
-              <AlertTriangle className="h-6 w-6 sm:h-8 sm:w-8 text-red-500 hidden sm:block" />
-            </div>
-          </div>
-
-          <div className="bg-green-900/20 border border-green-700 rounded-lg p-3 sm:p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm font-medium text-green-300">ชำระแล้ว</p>
-                <p className="text-xl sm:text-2xl font-bold text-white">
-                  {paidPaymentsCount}
-                </p>
-              </div>
-              <Check className="h-6 w-6 sm:h-8 sm:w-8 text-green-500 hidden sm:block" />
-            </div>
-          </div>
+        <div className="grid grid-cols-3 gap-3 sm:gap-4">
+          <MetricCard label="ยังไม่ชำระ" value={unpaidPaymentsCount} icon={Clock} tone="warning" loading={loading} />
+          <MetricCard
+            label="เกินกำหนด"
+            value={overduePaymentsCount}
+            icon={AlertTriangle}
+            tone="danger"
+            loading={loading}
+          />
+          <MetricCard label="ชำระแล้ว" value={paidPaymentsCount} icon={Check} tone="success" loading={loading} />
         </div>
 
         {/* Filters */}
-        <div className="bg-gray-800 rounded-lg border border-gray-700 p-3 sm:p-4">
+        <div className="bg-card rounded-lg border border-border p-3 sm:p-4">
           <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-            <Filter className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 hidden sm:block" />
+            <Filter className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground hidden sm:block" />
 
             {/* คอนโดฟิลเตอร์ */}
             <div className="flex items-center gap-1 sm:gap-2">
-              <label className="text-xs sm:text-sm font-medium text-gray-300">
+              <label className="text-xs sm:text-sm font-medium text-foreground" htmlFor="rent-f1">
                 คอนโด:
               </label>
-              <select
+              <select id="rent-f1"
                 value={selectedCondoFilter}
                 onChange={(e) => {
                   setSelectedCondoFilter(e.target.value);
                   setSelectedTenantFilter(""); // Reset tenant filter when condo changes
                 }}
-                className="px-2 py-1 sm:px-3 bg-gray-700 border border-gray-600 rounded text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-green-500 max-w-[100px] sm:max-w-none"
+                className="px-2 py-1 sm:px-3 bg-muted border border-input rounded text-foreground text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-ring max-w-[100px] sm:max-w-none"
               >
                 <option value="">ทั้งหมด</option>
                 {condos.map((condo) => (
@@ -736,14 +709,14 @@ export default function RentPage() {
 
             {/* ผู้เช่าฟิลเตอร์ */}
             <div className="flex items-center gap-1 sm:gap-2">
-              <label className="text-xs sm:text-sm font-medium text-gray-300">
+              <label className="text-xs sm:text-sm font-medium text-foreground" htmlFor="rent-f2">
                 ผู้เช่า:
               </label>
-              <select
+              <select id="rent-f2"
                 value={selectedTenantFilter}
                 onChange={(e) => setSelectedTenantFilter(e.target.value)}
                 disabled={!selectedCondoFilter}
-                className={`px-2 py-1 sm:px-3 bg-gray-700 border border-gray-600 rounded text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-green-500 max-w-[100px] sm:max-w-none ${!selectedCondoFilter ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`px-2 py-1 sm:px-3 bg-muted border border-input rounded text-foreground text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-ring max-w-[100px] sm:max-w-none ${!selectedCondoFilter ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <option value="">{selectedCondoFilter ? 'ทั้งหมด' : 'เลือกคอนโดก่อน'}</option>
                 {filteredTenantsForFilter.map((tenant) => (
@@ -756,13 +729,13 @@ export default function RentPage() {
 
             {/* ปีฟิลเตอร์ */}
             <div>
-              <label className="text-sm font-medium text-gray-300 mr-2">
+              <label className="text-sm font-medium text-foreground mr-2" htmlFor="rent-f3">
                 ปี:
               </label>
-              <select
+              <select id="rent-f3"
                 value={selectedYearFilter}
                 onChange={(e) => setSelectedYearFilter(e.target.value)}
-                className="px-3 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="px-3 py-1 bg-muted border border-input rounded text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               >
                 <option value="">ทั้งหมด</option>
                 {years.map((year) => (
@@ -775,13 +748,13 @@ export default function RentPage() {
 
             {/* เดือนฟิลเตอร์ */}
             <div>
-              <label className="text-sm font-medium text-gray-300 mr-2">
+              <label className="text-sm font-medium text-foreground mr-2" htmlFor="rent-f4">
                 เดือน:
               </label>
-              <select
+              <select id="rent-f4"
                 value={selectedMonthFilter}
                 onChange={(e) => setSelectedMonthFilter(e.target.value)}
-                className="px-3 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="px-3 py-1 bg-muted border border-input rounded text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               >
                 <option value="">ทั้งหมด</option>
                 {MONTHS_TH.map((month, index) => (
@@ -794,17 +767,17 @@ export default function RentPage() {
 
             {/* สถานะฟิลเตอร์ */}
             <div>
-              <label className="text-sm font-medium text-gray-300 mr-2">
+              <label className="text-sm font-medium text-foreground mr-2" htmlFor="rent-f5">
                 สถานะ:
               </label>
-              <select
+              <select id="rent-f5"
                 value={paymentStatusFilter}
                 onChange={(e) =>
                   setPaymentStatusFilter(
                     e.target.value as "all" | "unpaid" | "paid" | "overdue"
                   )
                 }
-                className="px-3 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="px-3 py-1 bg-muted border border-input rounded text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               >
                 <option value="all">ทั้งหมด</option>
                 <option value="unpaid">ยังไม่ชำระ</option>
@@ -813,7 +786,7 @@ export default function RentPage() {
               </select>
             </div>
 
-            <span className="text-xs sm:text-sm text-gray-400 w-full sm:w-auto">
+            <span className="text-xs sm:text-sm text-muted-foreground w-full sm:w-auto">
               พบ {filteredPayments.length} รายการ
             </span>
           </div>
@@ -841,10 +814,10 @@ export default function RentPage() {
         >
           <form onSubmit={handleSavePayment} className="space-y-3">
             <div>
-              <label className={`block text-sm font-medium mb-1 ${formErrors.tenant_id ? 'text-red-400' : 'text-gray-300'}`}>
-                ผู้เช่า <span className="text-red-500">*</span>
+              <label className={`block text-sm font-medium mb-1 ${formErrors.tenant_id ? 'text-destructive' : 'text-foreground'}`} htmlFor="rent-f6">
+                ผู้เช่า <span className="text-destructive">*</span>
               </label>
-              <select
+              <select id="rent-f6"
                 value={formData.tenant_id}
                 onChange={(e) => {
                   const selectedTenant = tenants.find(
@@ -857,7 +830,7 @@ export default function RentPage() {
                   });
                   if (formErrors.tenant_id) setFormErrors({ ...formErrors, tenant_id: undefined });
                 }}
-                className={`w-full px-3 py-2 bg-gray-700 border rounded-md text-white focus:outline-none focus:ring-2 ${formErrors.tenant_id ? 'border-red-500 focus:ring-red-500' : 'border-gray-600 focus:ring-green-500'}`}
+                className={fieldClass(!!formErrors.tenant_id)}
                 disabled={!!selectedPayment}
               >
                 <option value="">เลือกผู้เช่า</option>
@@ -874,7 +847,7 @@ export default function RentPage() {
                   })}
               </select>
               {formErrors.tenant_id && (
-                <div className="flex items-center mt-1 text-red-400 text-xs">
+                <div className="flex items-center mt-1 text-destructive text-xs">
                   <AlertCircle className="w-3 h-3 mr-1" />
                   {formErrors.tenant_id}
                 </div>
@@ -883,8 +856,8 @@ export default function RentPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
-                  จำนวนเงิน (บาท) <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-foreground mb-1" htmlFor="rent-f7">
+                  จำนวนเงิน (บาท) <span className="text-destructive">*</span>
                 </label>
                 <NumericFormat
                   thousandSeparator=","
@@ -896,19 +869,19 @@ export default function RentPage() {
                     setFormData({ ...formData, amount: values.value });
                     if (formErrors.amount) setFormErrors({ ...formErrors, amount: undefined });
                   }}
-                  className={`w-full px-3 py-2 bg-gray-700 border rounded-md text-white focus:outline-none focus:ring-2 ${formErrors.amount ? 'border-red-500 focus:ring-red-500' : 'border-gray-600 focus:ring-green-500'}`}
+                  className={fieldClass(!!formErrors.amount)}
                   placeholder="0.00"
                 />
                 {formErrors.amount && (
-                  <div className="flex items-center mt-1 text-red-400 text-xs">
+                  <div className="flex items-center mt-1 text-destructive text-xs">
                     <AlertCircle className="w-3 h-3 mr-1" />
                     {formErrors.amount}
                   </div>
                 )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
-                  วันครบกำหนด <span className="text-red-500">*</span>
+                <label htmlFor="due_date" className="block text-sm font-medium text-foreground mb-1">
+                  วันครบกำหนด <span className="text-destructive">*</span>
                 </label>
                 <DatePicker
                   id="due_date"
@@ -926,10 +899,10 @@ export default function RentPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
+                <label htmlFor="rent-f7" className="block text-sm font-medium text-foreground mb-1">
                   สถานะ *
                 </label>
-                <select
+                <select id="rent-f7"
                   required
                   value={formData.status}
                   onChange={(e) =>
@@ -938,7 +911,7 @@ export default function RentPage() {
                       status: e.target.value as "unpaid" | "paid" | "overdue",
                     })
                   }
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className={fieldClass()}
                 >
                   <option value="unpaid">ยังไม่ชำระ</option>
                   <option value="paid">ชำระแล้ว</option>
@@ -946,8 +919,8 @@ export default function RentPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
-                  วันที่ชำระ {formData.status === "paid" && <span className="text-red-500">*</span>}
+                <label className="block text-sm font-medium text-foreground mb-1" htmlFor="rent-f8">
+                  วันที่ชำระ {formData.status === "paid" && <span className="text-destructive">*</span>}
                 </label>
                 <DatePicker
                   id="paid_date"
@@ -987,15 +960,15 @@ export default function RentPage() {
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
+              <label htmlFor="rent-f8" className="block text-sm font-medium text-foreground mb-1">
                 หมายเหตุ
               </label>
-              <textarea
+              <textarea id="rent-f8"
                 value={formData.notes}
                 onChange={(e) =>
                   setFormData({ ...formData, notes: e.target.value })
                 }
-                className="w-full px-3 py-1.5 bg-gray-700 border border-gray-600 rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+                className="w-full px-3 py-1.5 bg-muted border border-input rounded-md text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
                 rows={2}
                 placeholder="หมายเหตุเพิ่มเติม..."
               />
@@ -1011,13 +984,13 @@ export default function RentPage() {
                   setUploadedFiles([]);
                 }}
                 disabled={isSaving || isUploading}
-                className="px-4 py-2 border border-red-500 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 border border-destructive text-destructive rounded-lg hover:bg-destructive/90 hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 ยกเลิก
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                 disabled={isSaving || isUploading}
               >
                 {isSaving || isUploading ? (

@@ -15,8 +15,8 @@ export function Pagination({ currentPage, totalPages, onPageChange, itemsPerPage
   const endItem = Math.min(currentPage * itemsPerPage, totalItems)
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 bg-gray-800 border-t border-gray-700">
-      <div className="flex items-center text-sm text-gray-400">
+    <div className="flex items-center justify-between px-4 py-3 bg-card border-t border-border">
+      <div className="flex items-center text-sm text-muted-foreground">
         <span>
           แสดง {startItem} ถึง {endItem} จาก {totalItems} รายการ
         </span>
@@ -25,7 +25,7 @@ export function Pagination({ currentPage, totalPages, onPageChange, itemsPerPage
         <button
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          className="p-2 text-gray-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+          className="p-2 text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
@@ -35,7 +35,7 @@ export function Pagination({ currentPage, totalPages, onPageChange, itemsPerPage
             key={page}
             onClick={() => onPageChange(page)}
             className={`px-3 py-1 text-sm rounded ${
-              page === currentPage ? "bg-green-600 text-white" : "text-gray-400 hover:text-white hover:bg-gray-700"
+              page === currentPage ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-accent"
             }`}
           >
             {page}
@@ -45,7 +45,7 @@ export function Pagination({ currentPage, totalPages, onPageChange, itemsPerPage
         <button
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
-          className="p-2 text-gray-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+          className="p-2 text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <ChevronRight className="h-4 w-4" />
         </button>

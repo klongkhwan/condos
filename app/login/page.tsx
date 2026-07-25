@@ -35,22 +35,22 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
           <div className="flex justify-center">
-            <Building2 className="h-12 w-12 text-green-500" />
+            <Building2 className="h-12 w-12 text-primary" />
           </div>
-          <h2 className="mt-6 text-3xl font-bold text-white">ระบบจัดการคอนโด</h2>
-          <p className="mt-2 text-sm text-gray-400">เข้าสู่ระบบด้วยบัญชีของคุณ</p>
+          <h2 className="mt-6 text-3xl font-bold text-foreground">ระบบจัดการคอนโด</h2>
+          <p className="mt-2 text-sm text-muted-foreground">เข้าสู่ระบบด้วยบัญชีของคุณ</p>
         </div>
 
-        <div className="bg-gray-800 rounded-lg border border-gray-700 p-8">
+        <div className="bg-card rounded-lg border border-border p-8">
           <form className="space-y-6" onSubmit={handleSubmit}>
-            {error && <div className="bg-red-900 border border-red-700 text-red-300 px-4 py-3 rounded">{error}</div>}
+            {error && <div className="bg-destructive-muted border border-destructive/40 text-destructive px-4 py-3 rounded">{error}</div>}
 
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-300">
+              <label htmlFor="email" className="block text-sm font-medium text-foreground">
                 Email
               </label>
               <input
@@ -60,13 +60,13 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                className="mt-1 block w-full px-3 py-2 bg-muted border border-input rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
                 placeholder="Enter your email"
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-300">
+              <label htmlFor="password" className="block text-sm font-medium text-foreground">
                 Password
               </label>
               <div className="mt-1 relative">
@@ -77,7 +77,7 @@ export default function LoginPage() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent pr-10"
+                  className="block w-full px-3 py-2 bg-muted border border-input rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent pr-10"
                   placeholder="Enter your password"
                 />
                 <button
@@ -86,9 +86,9 @@ export default function LoginPage() {
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
-                    <EyeOff className="h-4 w-4 text-gray-400" />
+                    <EyeOff className="h-4 w-4 text-muted-foreground" />
                   ) : (
-                    <Eye className="h-4 w-4 text-gray-400" />
+                    <Eye className="h-4 w-4 text-muted-foreground" />
                   )}
                 </button>
               </div>
@@ -97,16 +97,16 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {loading ? "Signing in..." : "Sign in"}
             </button>
           </form>
 
           <div className="mt-6 text-center">
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-muted-foreground">
               ยังไม่มีบัญชี?{" "}
-              <a href="/register" className="text-green-400 hover:text-green-300">
+              <a href="/register" className="text-success hover:text-success">
                 สมัครสมาชิก
               </a>
             </p>

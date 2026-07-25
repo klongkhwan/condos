@@ -37,11 +37,27 @@ export function MainLayout({ children }: MainLayoutProps) {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  // แสดง loading screen ขณะตรวจสอบสถานะการล็อกอิน
+  // โครงหน้าจางๆ ระหว่างตรวจสอบสถานะการล็อกอิน แทนจอว่างเปล่าแบบเดิม
   if (isLoading || !user) {
     return (
-      <div className="flex h-screen items-center justify-center bg-gray-950">
-       
+      <div className="flex h-screen bg-background">
+        <div className="hidden w-64 shrink-0 border-r border-border bg-card md:block">
+          <div className="h-16 border-b border-border" />
+          <div className="space-y-2 p-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-9 animate-pulse rounded-lg bg-muted" />
+            ))}
+          </div>
+        </div>
+        <div className="flex-1 space-y-4 p-4 md:p-8">
+          <div className="h-8 w-48 animate-pulse rounded-lg bg-muted" />
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="h-28 animate-pulse rounded-xl bg-muted" />
+            ))}
+          </div>
+          <div className="h-64 animate-pulse rounded-xl bg-muted" />
+        </div>
       </div>
     )
   }
@@ -49,7 +65,7 @@ export function MainLayout({ children }: MainLayoutProps) {
   return (
     <>
       <AuthInitializer />
-      <div className="flex flex-col h-screen bg-gray-950">
+      <div className="flex h-screen flex-col bg-background">
         {/* Mobile Header */}
         <MobileHeader onMenuClick={() => setIsMobileSidebarOpen(true)} />
         
@@ -62,8 +78,8 @@ export function MainLayout({ children }: MainLayoutProps) {
           />
           
           {/* Main Content */}
-          <main className="flex-1 overflow-auto">
-            <div className="p-3 sm:p-4 md:py-6 md:px-10 lg:py-8 lg:px-12">{children}</div>
+          <main className="scrollbar-slim flex-1 overflow-auto">
+            <div className="mx-auto max-w-[1600px] p-4 sm:p-5 md:px-8 md:py-7 lg:px-10 lg:py-8">{children}</div>
           </main>
         </div>
         

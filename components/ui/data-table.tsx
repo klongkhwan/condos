@@ -1,13 +1,17 @@
 "use client"
 
 import type { ReactNode } from "react"
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
+import { ChevronLeft, ChevronRight, Inbox } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 interface Column<T> {
   key: keyof T | string
   header: string
   render?: (item: T) => ReactNode
   hideOnMobile?: boolean
+  align?: "left" | "right" | "center"
+  className?: string
 }
 
 interface DataTableProps<T> {
@@ -17,7 +21,34 @@ interface DataTableProps<T> {
   emptyMessage?: string
   itemsPerPage?: number
   showPagination?: boolean
+  onRowClick?: (item: T) => void
+  className?: string
 }
+
+/** สร้างรายการหมายเลขหน้า: หน้าแรก ... หน้ารอบปัจจุบัน ... หน้าสุดท้าย */
+function buildPageList(totalPages: number, currentPage: number): (number | "gap")[] {
+  if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1)
+
+  const pages = new Set<number>([1, totalPages, currentPage])
+  if (currentPage - 1 > 1) pages.add(currentPage - 1)
+  if (currentPage + 1 < totalPages) pages.add(currentPage + 1)
+  if (currentPage <= 3) pages.add(2).add(3)
+  if (currentPage >= totalPages - 2) pages.add(totalPages - 1).add(totalPages - 2)
+
+  const sorted = [...pages].filter((p) => p >= 1 && p <= totalPages).sort((a, b) => a - b)
+  const result: (number | "gap")[] = []
+  sorted.forEach((page, index) => {
+    if (index > 0 && page - (sorted[index - 1] as number) > 1) result.push("gap")
+    result.push(page)
+  })
+  return result
+}
+
+const alignClass = {
+  left: "text-left",
+  right: "text-right",
+  center: "text-center",
+} as const
 
 export function DataTable<T extends Record<string, any>>({
   data,
@@ -26,85 +57,33 @@ export function DataTable<T extends Record<string, any>>({
   emptyMessage = "ไม่มีข้อมูล",
   itemsPerPage = 10,
   showPagination = true,
+  onRowClick,
+  className,
 }: DataTableProps<T>) {
   const [currentPage, setCurrentPage] = useState(1)
 
-  const totalPages = Math.ceil(data.length / itemsPerPage)
+  const totalPages = Math.max(1, Math.ceil(data.length / itemsPerPage))
+
+  // ถ้าข้อมูลถูกกรองจนหน้าปัจจุบันเกินช่วง ให้ดีดกลับหน้าสุดท้ายที่ยังมีข้อมูล
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages)
+  }, [currentPage, totalPages])
+
   const startIndex = (currentPage - 1) * itemsPerPage
   const paginatedData = showPagination ? data.slice(startIndex, startIndex + itemsPerPage) : data
-
-  /**
-   * สร้างรายการหมายเลขหน้าที่จะแสดง โดยซ่อนตัวเลขตรงกลางด้วย '...'
-   * และทำให้การแสดงผลมีความเสถียรเมื่อเลื่อนหน้า
-   */
-  const getPageNumbers = (totalPages: number, currentPage: number): (number | '...')[] => {
-    // กำหนดค่าคงที่สำหรับการแสดงผล
-    const MAX_VISIBLE_PAGES = 5; 
-    const SIBLING_COUNT = 1; // จำนวนหน้าที่จะแสดงรอบหน้าปัจจุบัน (เช่น ...4, 5, 6...)
-    const FIRST_LAST_COUNT = 2; // จำนวนหน้าแรกและหน้าสุดท้ายที่จะแสดง (เช่น 1, 2, ... N-1, N)
-
-    if (totalPages <= MAX_VISIBLE_PAGES) {
-      // ถ้าจำนวนหน้าน้อย ให้แสดงทั้งหมด
-      return Array.from({ length: totalPages }, (_, i) => i + 1)
-    }
-
-    const pages: (number | '...')[] = []
-    
-    // 1. ส่วนหน้า: [1, 2]
-    for (let i = 1; i <= FIRST_LAST_COUNT; i++) {
-        pages.push(i);
-    }
-
-    // คำนวณขอบเขตของชุดตัวเลขตรงกลาง
-    let start = Math.max(FIRST_LAST_COUNT + 1, currentPage - SIBLING_COUNT);
-    let end = Math.min(totalPages - FIRST_LAST_COUNT, currentPage + SIBLING_COUNT);
-
-    // 2. ส่วนกลาง: เพิ่ม '...' ก่อน ถ้าจำเป็น
-    if (start > FIRST_LAST_COUNT + 1) {
-        pages.push('...');
-    } else if (currentPage > FIRST_LAST_COUNT) {
-        start = FIRST_LAST_COUNT + 1;
-    }
-    
-    // เพิ่มหน้าปัจจุบันและหน้าที่อยู่รอบข้าง
-    for (let i = start; i <= end; i++) {
-        // ป้องกันการซ้ำซ้อนกับหน้าแรก
-        if (i > FIRST_LAST_COUNT && i < totalPages - FIRST_LAST_COUNT + 1) {
-            pages.push(i);
-        }
-    }
-    
-    // 3. ส่วนหลัง: เพิ่ม '...' หลัง ถ้าจำเป็น
-    if (end < totalPages - FIRST_LAST_COUNT) {
-      if (pages[pages.length - 1] !== '...') {
-        pages.push('...');
-      }
-    } else if (currentPage <= totalPages - FIRST_LAST_COUNT) {
-        end = totalPages - FIRST_LAST_COUNT;
-    }
-
-    // 4. ส่วนท้าย: [N-1, N]
-    for (let i = totalPages - FIRST_LAST_COUNT + 1; i <= totalPages; i++) {
-        // ป้องกันการซ้ำซ้อน
-        if (i > (pages[pages.length - 1] as number)) {
-            pages.push(i);
-        } else if (i === totalPages && !pages.includes(i)) {
-             pages.push(i);
-        }
-    }
-    
-    // กรอง '...' ซ้ำซ้อน
-    return pages.filter((page, index) => !(page === '...' && pages[index - 1] === '...'))
-  }
-
-  const pagesToDisplay = getPageNumbers(totalPages, currentPage)
+  const pageList = useMemo(() => buildPageList(totalPages, currentPage), [totalPages, currentPage])
 
   if (loading) {
     return (
-      <div className="bg-gray-800 rounded-lg border border-gray-700">
-        <div className="p-8 text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500 mx-auto"></div>
-          <p className="text-gray-400 mt-2">กำลังโหลด...</p>
+      <div className={cn("overflow-hidden rounded-xl border border-border bg-card shadow-card", className)}>
+        <div className="divide-y divide-border">
+          {Array.from({ length: Math.min(itemsPerPage, 5) }).map((_, index) => (
+            <div key={index} className="flex items-center gap-4 px-4 py-4 sm:px-6">
+              <div className="h-3.5 flex-1 animate-pulse rounded bg-muted" />
+              <div className="hidden h-3.5 w-24 animate-pulse rounded bg-muted sm:block" />
+              <div className="h-3.5 w-16 animate-pulse rounded bg-muted" />
+            </div>
+          ))}
         </div>
       </div>
     )
@@ -112,41 +91,58 @@ export function DataTable<T extends Record<string, any>>({
 
   if (data.length === 0) {
     return (
-      <div className="bg-gray-800 rounded-lg border border-gray-700">
-        <div className="p-8 text-center">
-          <p className="text-gray-400">{emptyMessage}</p>
+      <div className={cn("rounded-xl border border-border bg-card shadow-card", className)}>
+        <div className="flex flex-col items-center justify-center gap-2 px-6 py-12 text-center">
+          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
+            <Inbox className="h-5 w-5" />
+          </span>
+          <p className="text-sm text-muted-foreground">{emptyMessage}</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-700">
-          <thead className="bg-gray-900">
-            <tr>
+    <div className={cn("overflow-hidden rounded-xl border border-border bg-card shadow-card", className)}>
+      <div className="scrollbar-slim overflow-x-auto">
+        <table className="min-w-full">
+          <thead>
+            <tr className="border-b border-border bg-surface-raised">
               {columns.map((column, index) => (
                 <th
                   key={index}
-                  className={`px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider ${
-                    column.hideOnMobile ? 'hidden sm:table-cell' : ''
-                  }`}
+                  scope="col"
+                  className={cn(
+                    "whitespace-nowrap px-3 py-2.5 text-xs font-medium text-muted-foreground sm:px-5",
+                    alignClass[column.align ?? "left"],
+                    column.hideOnMobile && "hidden sm:table-cell",
+                  )}
                 >
                   {column.header}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-700">
+          <tbody className="divide-y divide-border">
             {paginatedData.map((item, index) => (
-              <tr key={index} className="hover:bg-gray-700 transition-colors">
+              <tr
+                key={index}
+                onClick={onRowClick ? () => onRowClick(item) : undefined}
+                className={cn(
+                  "transition-colors",
+                  onRowClick ? "cursor-pointer hover:bg-surface-raised" : "hover:bg-surface-raised/60",
+                )}
+              >
                 {columns.map((column, colIndex) => (
-                  <td 
-                    key={colIndex} 
-                    className={`px-3 py-3 sm:px-6 sm:py-4 text-xs sm:text-sm text-gray-300 ${
-                      column.hideOnMobile ? 'hidden sm:table-cell' : ''
-                    }`}
+                  <td
+                    key={colIndex}
+                    className={cn(
+                      "px-3 py-3 text-xs text-foreground sm:px-5 sm:py-3.5 sm:text-sm",
+                      alignClass[column.align ?? "left"],
+                      column.align === "right" && "tabular",
+                      column.hideOnMobile && "hidden sm:table-cell",
+                      column.className,
+                    )}
                   >
                     {column.render ? column.render(item) : item[column.key as keyof T]}
                   </td>
@@ -156,106 +152,66 @@ export function DataTable<T extends Record<string, any>>({
           </tbody>
         </table>
       </div>
-      {/* Pagination */}
-      {showPagination && (
-        <div className="px-3 py-2 sm:px-4 sm:py-3 flex items-center justify-between border-t border-gray-700">
-          {/* Mobile pagination */}
-          <div className="flex-1 flex justify-between items-center sm:hidden">
+
+      {showPagination && data.length > itemsPerPage && (
+        <div className="flex items-center justify-between gap-3 border-t border-border px-3 py-2.5 sm:px-5">
+          <p className="tabular text-xs text-muted-foreground">
+            <span className="hidden sm:inline">แสดง </span>
+            {startIndex + 1}–{Math.min(currentPage * itemsPerPage, data.length)}
+            <span className="hidden sm:inline"> จาก {data.length} รายการ</span>
+            <span className="sm:hidden"> / {data.length}</span>
+          </p>
+
+          <nav className="flex items-center gap-1" aria-label="การแบ่งหน้า">
             <button
-              onClick={() => setCurrentPage(currentPage - 1)}
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className="relative inline-flex items-center px-3 py-1.5 border border-gray-700 text-xs font-medium rounded-md text-gray-300 bg-gray-800 hover:bg-gray-700 disabled:opacity-50"
+              aria-label="หน้าก่อนหน้า"
+              className="flex h-7 w-7 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-surface-raised hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
             >
-              ก่อนหน้า
+              <ChevronLeft className="h-4 w-4" />
             </button>
-            <span className="text-xs text-gray-400">
-              {currentPage} / {totalPages || 1}
+
+            <div className="hidden items-center gap-1 sm:flex">
+              {pageList.map((page, index) =>
+                page === "gap" ? (
+                  <span key={`gap-${index}`} className="px-1 text-xs text-muted-foreground">
+                    …
+                  </span>
+                ) : (
+                  <button
+                    key={page}
+                    type="button"
+                    onClick={() => setCurrentPage(page)}
+                    aria-current={currentPage === page ? "page" : undefined}
+                    className={cn(
+                      "tabular h-7 min-w-7 rounded-md px-2 text-xs font-medium transition-colors",
+                      currentPage === page
+                        ? "bg-primary text-primary-foreground"
+                        : "border border-border text-muted-foreground hover:bg-surface-raised hover:text-foreground",
+                    )}
+                  >
+                    {page}
+                  </button>
+                ),
+              )}
+            </div>
+
+            <span className="tabular px-1 text-xs text-muted-foreground sm:hidden">
+              {currentPage} / {totalPages}
             </span>
+
             <button
-              onClick={() => setCurrentPage(currentPage + 1)}
-              disabled={currentPage === totalPages || totalPages === 0}
-              className="relative inline-flex items-center px-3 py-1.5 border border-gray-700 text-xs font-medium rounded-md text-gray-300 bg-gray-800 hover:bg-gray-700 disabled:opacity-50"
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              aria-label="หน้าถัดไป"
+              className="flex h-7 w-7 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-surface-raised hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
             >
-              ถัดไป
+              <ChevronRight className="h-4 w-4" />
             </button>
-          </div>
-          {/* Desktop pagination */}
-          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm text-gray-400">
-                Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to{" "}
-                <span className="font-medium">{Math.min(currentPage * itemsPerPage, data.length)}</span> of{" "}
-                <span className="font-medium">{data.length}</span> results
-              </p>
-            </div>
-            <div>
-              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                <button
-                  onClick={() => setCurrentPage(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-700 bg-gray-800 text-sm font-medium text-gray-300 hover:bg-gray-700"
-                >
-                  <span className="sr-only">Previous</span>
-                  <svg
-                    className="h-5 w-5"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                    aria-hidden="true"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </button>
-                {pagesToDisplay.map((page, index) => (
-                  page === '...' ? (
-                    <span
-                      key={`ellipsis-${index}`}
-                      className="relative inline-flex items-center px-4 py-2 border border-gray-700 bg-gray-800 text-sm font-medium text-gray-300"
-                    >
-                      ...
-                    </span>
-                  ) : (
-                    <button
-                      key={page}
-                      onClick={() => setCurrentPage(page as number)}
-                      aria-current={currentPage === page ? "page" : undefined}
-                      className={`${
-                        currentPage === page
-                          ? "z-10 bg-gray-700 border-green-500 text-green-500"
-                          : "bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700"
-                      } relative inline-flex items-center px-4 py-2 border text-sm font-medium`}
-                    >
-                      {page}
-                    </button>
-                  )
-                ))}
-                <button
-                  onClick={() => setCurrentPage(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-700 bg-gray-800 text-sm font-medium text-gray-300 hover:bg-gray-700"
-                >
-                  <span className="sr-only">Next</span>
-                  <svg
-                    className="h-5 w-5"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                    aria-hidden="true"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </button>
-              </nav>
-            </div>
-          </div>
+          </nav>
         </div>
       )}
     </div>

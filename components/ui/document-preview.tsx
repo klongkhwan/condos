@@ -181,7 +181,7 @@ export function DocumentPreview({
   if (loading) {
     return (
       <div className="flex justify-center items-center h-32">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -189,8 +189,8 @@ export function DocumentPreview({
   if (documents.length === 0) {
     return (
       <div className="text-center py-8">
-        <File className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-        <p className="text-gray-400">ไม่มีเอกสาร</p>
+        <File className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+        <p className="text-muted-foreground">ไม่มีเอกสาร</p>
       </div>
     );
   }
@@ -198,7 +198,7 @@ export function DocumentPreview({
   return (
     <>
       <div>
-        <h4 className="text-sm font-medium text-gray-300 mb-2">
+        <h4 className="text-sm font-medium text-foreground mb-2">
           {title} ({documents.length} ไฟล์):
         </h4>
         <div
@@ -211,7 +211,7 @@ export function DocumentPreview({
           {documents.map((doc) => (
             <div
               key={doc.id}
-              className="bg-gray-700 p-3 rounded-lg hover:bg-gray-600 transition-colors"
+              className="bg-muted p-3 rounded-lg hover:bg-accent transition-colors"
             >
               <div className="flex items-start space-x-3">
                 {/* Thumbnail or file icon */}
@@ -225,13 +225,13 @@ export function DocumentPreview({
                       <img
                         src={doc.file_url}
                         alt={doc.name}
-                        className="w-16 h-16 object-cover rounded border border-gray-500"
+                        className="w-16 h-16 object-cover rounded border border-border-strong"
                         loading="lazy"
                       />
                     </div>
                   ) : (
-                    <div className="w-16 h-16 bg-gray-600 rounded flex items-center justify-center border border-gray-500">
-                      <File className="h-6 w-6 text-gray-400" />
+                    <div className="w-16 h-16 bg-muted rounded flex items-center justify-center border border-border-strong">
+                      <File className="h-6 w-6 text-muted-foreground" />
                     </div>
                   )}
                 </div>
@@ -240,10 +240,10 @@ export function DocumentPreview({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
                     <div className="min-w-0 flex-1">
-                      <span className="text-sm text-white truncate block font-medium">
+                      <span className="text-sm text-foreground truncate block font-medium">
                         {doc.name}
                       </span>
-                      <span className="text-xs text-gray-400 block mt-1">
+                      <span className="text-xs text-muted-foreground block mt-1">
                         {documentTypes.find(
                           (t) => t.value === doc.document_type
                         )?.label ||
@@ -251,7 +251,7 @@ export function DocumentPreview({
                           "ไม่ระบุประเภท"}
                       </span>
                       {isImageFile(doc.name) && (
-                        <span className="text-xs text-green-400 block mt-1">
+                        <span className="text-xs text-success block mt-1">
                           คลิกที่รูปเพื่อดูขนาดใหญ่
                         </span>
                       )}
@@ -266,7 +266,7 @@ export function DocumentPreview({
                           <button
                             type="button"
                             onClick={() => openImagePreview(doc)}
-                            className="text-blue-400 hover:text-blue-300 text-xs flex items-center"
+                            className="text-info hover:text-info text-xs flex items-center"
                             title="ดูรูปภาพ"
                           >
                             <Eye className="h-3 w-3 mr-1" />
@@ -277,7 +277,7 @@ export function DocumentPreview({
                             href={doc.file_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-blue-400 hover:text-blue-300 text-xs flex items-center"
+                            className="text-info hover:text-info text-xs flex items-center"
                             title="ดู/ดาวน์โหลด"
                           >
                             <Eye className="h-3 w-3 mr-1" />
@@ -296,7 +296,7 @@ export function DocumentPreview({
                             doc.name
                           )
                         }
-                        className="text-red-400 hover:text-red-300 text-xs flex items-center"
+                        className="text-destructive hover:text-destructive text-xs flex items-center"
                         title="ลบเอกสาร"
                       >
                         <X className="h-3 w-3 mr-1" />
@@ -321,12 +321,12 @@ export function DocumentPreview({
       >
         <div className="w-full h-screen max-h-[75vh] flex flex-col bg-black">
           {/* Title Bar */}
-          <div className="flex items-center justify-between px-6 py-4 bg-black bg-opacity-90 backdrop-blur-sm border-b border-gray-700">
+          <div className="flex items-center justify-between px-6 py-4 bg-black bg-opacity-90 backdrop-blur-sm border-b border-border">
             <div className="flex-1 min-w-0">
-              <h3 className="text-lg font-medium text-white truncate">
+              <h3 className="text-lg font-medium text-foreground truncate">
                 {previewImageName}
               </h3>
-              <p className="text-sm text-gray-400 mt-1">
+              <p className="text-sm text-muted-foreground mt-1">
                 {documentTypes.find(
                   (t) => t.value === documents.find(d => d.file_url === previewImageUrl)?.document_type
                 )?.label ||
@@ -337,7 +337,7 @@ export function DocumentPreview({
             <button
               type="button"
               onClick={() => setIsImagePreviewOpen(false)}
-              className="ml-4 p-2 text-gray-400 hover:text-white transition-colors"
+              className="ml-4 p-2 text-muted-foreground hover:text-foreground transition-colors"
               title="ปิด (Esc)"
             >
               <X className="h-5 w-5" />
@@ -361,8 +361,8 @@ export function DocumentPreview({
               {isPreviewLoading && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-80 z-20">
                   <div className="flex flex-col items-center gap-3">
-                    <Loader2 className="h-10 w-10 text-green-500 animate-spin" />
-                    <span className="text-gray-400 text-sm">กำลังโหลดภาพ...</span>
+                    <Loader2 className="h-10 w-10 text-primary animate-spin" />
+                    <span className="text-muted-foreground text-sm">กำลังโหลดภาพ...</span>
                   </div>
                 </div>
               )}
@@ -371,14 +371,14 @@ export function DocumentPreview({
               {previewError && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-80 z-20">
                   <div className="flex flex-col items-center gap-3 text-center">
-                    <X className="h-10 w-10 text-red-500" />
-                    <span className="text-gray-400 text-sm">ไม่สามารถโหลดภาพได้</span>
+                    <X className="h-10 w-10 text-destructive" />
+                    <span className="text-muted-foreground text-sm">ไม่สามารถโหลดภาพได้</span>
                     <button
                       onClick={() => {
                         setPreviewError(false);
                         setIsPreviewLoading(true);
                       }}
-                      className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded-lg transition-colors"
+                      className="px-4 py-2 bg-muted hover:bg-accent text-foreground text-sm rounded-lg transition-colors"
                     >
                       ลองใหม่
                     </button>
@@ -414,7 +414,7 @@ export function DocumentPreview({
             {/* Floating Controls */}
             <div className="absolute top-4 right-4 flex flex-col items-end space-y-2">
               {/* Zoom indicator */}
-              <div className="bg-black bg-opacity-60 text-white px-3 py-1 rounded-lg text-sm font-mono backdrop-blur-sm">
+              <div className="bg-black bg-opacity-60 text-foreground px-3 py-1 rounded-lg text-sm font-mono backdrop-blur-sm">
                 {Math.round(zoomLevel * 100)}%
               </div>
 
@@ -423,7 +423,7 @@ export function DocumentPreview({
                 <button
                   type="button"
                   onClick={handleZoomIn}
-                  className="p-2 bg-black bg-opacity-60 hover:bg-opacity-80 text-white rounded-lg transition-all backdrop-blur-sm"
+                  className="p-2 bg-black bg-opacity-60 hover:bg-opacity-80 text-foreground rounded-lg transition-all backdrop-blur-sm"
                   title="ซูมเข้า (+)"
                 >
                   <ZoomIn className="h-4 w-4" />
@@ -431,7 +431,7 @@ export function DocumentPreview({
                 <button
                   type="button"
                   onClick={handleZoomOut}
-                  className="p-2 bg-black bg-opacity-60 hover:bg-opacity-80 text-white rounded-lg transition-all backdrop-blur-sm"
+                  className="p-2 bg-black bg-opacity-60 hover:bg-opacity-80 text-foreground rounded-lg transition-all backdrop-blur-sm"
                   title="ซูมออก (-)"
                 >
                   <ZoomOut className="h-4 w-4" />
@@ -439,7 +439,7 @@ export function DocumentPreview({
                 <button
                   type="button"
                   onClick={handleRotate}
-                  className="p-2 bg-black bg-opacity-60 hover:bg-opacity-80 text-white rounded-lg transition-all backdrop-blur-sm"
+                  className="p-2 bg-black bg-opacity-60 hover:bg-opacity-80 text-foreground rounded-lg transition-all backdrop-blur-sm"
                   title="หมุนรูปภาพ (R)"
                 >
                   <RotateCw className="h-4 w-4" />
@@ -447,17 +447,17 @@ export function DocumentPreview({
                 <button
                   type="button"
                   onClick={resetZoom}
-                  className="p-2 bg-black bg-opacity-60 hover:bg-opacity-80 text-white rounded-lg transition-all backdrop-blur-sm text-xs"
+                  className="p-2 bg-black bg-opacity-60 hover:bg-opacity-80 text-foreground rounded-lg transition-all backdrop-blur-sm text-xs"
                   title="พอดีกับหน้าจอ (0)"
                 >
                   ฟิต
                 </button>
-                <div className="h-px bg-gray-600 my-1"></div>
+                <div className="h-px bg-muted my-1"></div>
                 <a
                   href={previewImageUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="p-2 bg-black bg-opacity-60 hover:bg-opacity-80 text-white rounded-lg transition-all backdrop-blur-sm"
+                  className="p-2 bg-black bg-opacity-60 hover:bg-opacity-80 text-foreground rounded-lg transition-all backdrop-blur-sm"
                   title="เปิดในแท็บใหม่"
                 >
                   <Eye className="h-4 w-4" />
@@ -465,7 +465,7 @@ export function DocumentPreview({
                 <button
                   type="button"
                   onClick={() => setIsImagePreviewOpen(false)}
-                  className="p-2 bg-red-600 bg-opacity-80 hover:bg-opacity-100 text-white rounded-lg transition-all"
+                  className="p-2 bg-destructive bg-opacity-80 hover:bg-opacity-100 text-destructive-foreground rounded-lg transition-all"
                   title="ปิด (Esc)"
                 >
                   <X className="h-4 w-4" />

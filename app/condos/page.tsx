@@ -2,19 +2,25 @@
 
 import type React from "react";
 import { useState } from "react";
-import { Plus, Edit, FileText, Upload, File, X, Eye, AlertCircle, Loader2 } from "lucide-react";
+import { Plus, Edit, FileText, Upload, File, X, Eye, AlertCircle, Loader2, Building2 } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
 import { MainLayout } from "@/components/layout/main-layout";
+import { fieldClass } from "@/components/ui/field";
 import { DataTable } from "@/components/ui/data-table";
 import { Modal } from "@/components/ui/modal";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
-import { Notification } from "@/components/ui/notification";
+import { useNotification } from "@/lib/hooks/use-notification";
 import { DocumentPreview } from "@/components/ui/document-preview";
 import { ImageCompressInput } from "@/components/ui/image-compress-input";
 import { DatePicker } from "@/components/ui/date-picker";
 import { useAuth } from "@/lib/auth-context";
 import type { Condo } from "@/lib/supabase";
-import { useCondos } from "@/lib/hooks/use-queries";
-import { useDocumentsDB } from "@/lib/hooks/use-database";
+import {
+  useCondos,
+  useDocuments,
+  useDataInvalidation,
+} from "@/lib/hooks/use-queries";
+
 import {
   uploadDocument,
   deleteDocumentAction,
@@ -39,7 +45,8 @@ const CONDO_DOCUMENT_TYPES = [
 
 export default function CondosPage() {
   const { user } = useAuth();
-  const { condos, loading, refetch: refetchCondos } = useCondos(user?.id);
+  const { condos, loading } = useCondos(user?.id);
+  const { afterCondoChange, afterDocumentChange } = useDataInvalidation(user?.id);
 
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -63,8 +70,7 @@ export default function CondosPage() {
   const {
     documents: condoDocuments,
     loading: condoDocumentsLoading,
-    refetch: refetchDocuments,
-  } = useDocumentsDB({
+  } = useDocuments({
     condoId: selectedCondo?.id,
     scope: "condo",
   });
@@ -75,10 +81,7 @@ export default function CondosPage() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Notification state
-  const [notification, setNotification] = useState<{
-    message: string;
-    type: "success" | "error";
-  } | null>(null);
+  const { setNotification, notificationElement } = useNotification();
 
   const [formData, setFormData] = useState({
     name: "",
@@ -164,7 +167,7 @@ export default function CondosPage() {
             message: "บันทึกสำเร็จ",
             type: "success",
           });
-          refetchCondos();
+          afterCondoChange();
         } else {
           throw new Error(result.message);
         }
@@ -172,7 +175,7 @@ export default function CondosPage() {
         const result = await createCondoAction(condoData);
         if (result.success) {
           setNotification({ message: "เพิ่มคอนโดใหม่สำเร็จ", type: "success" });
-          refetchCondos();
+          afterCondoChange();
         } else {
           throw new Error(result.message);
         }
@@ -241,7 +244,7 @@ export default function CondosPage() {
             message: `คอนโด "${selectedCondo.name}" ถูกปิดใช้งานแล้ว`,
             type: "success",
           });
-          refetchCondos();
+          afterCondoChange();
         } else {
           throw new Error(result.message);
         }
@@ -273,7 +276,7 @@ export default function CondosPage() {
     setUploadedFiles([]);
     setDocumentType("");
     setIsFileModalOpen(true);
-    // Documents are automatically fetched by useDocumentsDB when selectedCondo changes
+    // Documents are automatically fetched by useDocuments when selectedCondo changes
   };
 
   const handleFileSubmit = async () => {
@@ -307,7 +310,7 @@ export default function CondosPage() {
       setUploadedFiles([]);
       setDocumentType("");
       setIsFileModalOpen(false);
-      refetchDocuments();
+      afterDocumentChange();
     } catch (error: any) {
       console.error("Error uploading files:", error);
       setNotification({
@@ -336,7 +339,7 @@ export default function CondosPage() {
       );
       if (!result.success) throw new Error(result.message);
       setNotification({ message: `เอกสาร "${docToDelete.name}" ถูกลบแล้ว`, type: "success" });
-      refetchDocuments();
+      afterDocumentChange();
     } catch (error: any) {
       console.error("Error deleting document:", error);
       setNotification({ message: `เกิดข้อผิดพลาดในการลบเอกสาร: ${error.message}`, type: "error" });
@@ -396,19 +399,19 @@ export default function CondosPage() {
         <div className="flex space-x-2">
           <button
             onClick={() => handleEdit(condo)}
-            className="text-blue-400 hover:text-blue-300"
+            className="text-info hover:text-info"
             title="แก้ไข"
           >
             <Edit className="h-4 w-4" />
           </button>
           <button
             onClick={() => openFileModal(condo)}
-            className="text-green-400 hover:text-green-300"
+            className="text-success hover:text-success"
             title="แนบไฟล์"
           >
             <FileText className="h-4 w-4" />
           </button>
-          {/* <button onClick={() => handleDelete(condo)} className="text-red-400 hover:text-red-300" title="ปิดใช้งาน">
+          {/* <button onClick={() => handleDelete(condo)} className="text-destructive hover:text-destructive" title="ปิดใช้งาน">
             <X className="h-4 w-4" />
           </button> */}
         </div>
@@ -421,28 +424,22 @@ export default function CondosPage() {
     <MainLayout>
       <div className="space-y-4 sm:space-y-6">
         {/* Notification */}
-        {notification && (
-          <Notification
-            message={notification.message}
-            type={notification.type}
-            onClose={() => setNotification(null)}
-          />
-        )}
+        {notificationElement}
 
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-white">คอนโด</h1>
-            <p className="text-sm sm:text-base text-gray-400">จัดการคอนโดของคุณ</p>
-          </div>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="flex items-center px-3 py-2 sm:px-4 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm"
-          >
-            <Plus className="h-4 w-4 mr-1 sm:mr-2" />
-            เพิ่มคอนโด
-          </button>
-        </div>
+        <PageHeader
+          title="คอนโด"
+          description="จัดการคอนโดของคุณ"
+          icon={Building2}
+          actions={
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="flex items-center px-3 py-2 sm:px-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors text-sm"
+            >
+              <Plus className="h-4 w-4 mr-1 sm:mr-2" />
+              เพิ่มคอนโด
+            </button>
+          }
+        />
 
         {/* Condos Table */}
         <DataTable
@@ -463,10 +460,10 @@ export default function CondosPage() {
           <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
-                  ชื่อคอนโด <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-foreground mb-1" htmlFor="condos-f1">
+                  ชื่อคอนโด <span className="text-destructive">*</span>
                 </label>
-                <input
+                <input id="condos-f1"
                   type="text"
                   maxLength={50}
                   placeholder="ระบุชื่อคอนโด"
@@ -475,20 +472,20 @@ export default function CondosPage() {
                     setFormData({ ...formData, name: e.target.value });
                     if (formErrors.name) setFormErrors({ ...formErrors, name: undefined });
                   }}
-                  className={`w-full px-3 py-2 bg-gray-700 border rounded-md text-white focus:outline-none focus:ring-2 ${formErrors.name ? 'border-red-500 focus:ring-red-500' : 'border-gray-600 focus:ring-green-500'}`}
+                  className={fieldClass(!!formErrors.name)}
                 />
                 {formErrors.name && (
-                  <div className="flex items-center mt-1 text-red-400 text-xs">
+                  <div className="flex items-center mt-1 text-destructive text-xs">
                     <AlertCircle className="w-3 h-3 mr-1" />
                     {formErrors.name}
                   </div>
                 )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1" htmlFor="condos-f2">
                   หมายเลขห้อง
                 </label>
-                <input
+                <input id="condos-f2"
                   type="text"
                   value={formData.room_number}
                   maxLength={10}
@@ -496,16 +493,16 @@ export default function CondosPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, room_number: e.target.value })
                   }
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className={fieldClass()}
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
-                ที่อยู่ <span className="text-red-500">*</span>
+              <label className="block text-sm font-medium text-foreground mb-1" htmlFor="condos-f3">
+                ที่อยู่ <span className="text-destructive">*</span>
               </label>
-              <textarea
+              <textarea id="condos-f3"
                 value={formData.address}
                 maxLength={255}
                 placeholder="ระบุที่อยู่"
@@ -513,11 +510,11 @@ export default function CondosPage() {
                   setFormData({ ...formData, address: e.target.value });
                   if (formErrors.address) setFormErrors({ ...formErrors, address: undefined });
                 }}
-                className={`w-full px-3 py-2 bg-gray-700 border rounded-md text-white focus:outline-none focus:ring-2 ${formErrors.address ? 'border-red-500 focus:ring-red-500' : 'border-gray-600 focus:ring-green-500'}`}
+                className={fieldClass(!!formErrors.address)}
                 rows={2}
               />
               {formErrors.address && (
-                <div className="flex items-center mt-1 text-red-400 text-xs">
+                <div className="flex items-center mt-1 text-destructive text-xs">
                   <AlertCircle className="w-3 h-3 mr-1" />
                   {formErrors.address}
                 </div>
@@ -525,25 +522,25 @@ export default function CondosPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-foreground mb-1" htmlFor="condos-f4">
                 รายละเอียด
               </label>
-              <textarea
+              <textarea id="condos-f4"
                 value={formData.description}
                 maxLength={255}
                 placeholder="ระบุรายละเอียด"
                 onChange={(e) =>
                   setFormData({ ...formData, description: e.target.value })
                 }
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                className={fieldClass()}
                 rows={3}
               />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
-                  ราคาซื้อ (บาท) <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-foreground mb-1" htmlFor="condos-f5">
+                  ราคาซื้อ (บาท) <span className="text-destructive">*</span>
                 </label>
                 <NumericFormat
                   thousandSeparator=","
@@ -554,11 +551,11 @@ export default function CondosPage() {
                     setFormData({ ...formData, purchase_price: values.value });
                     if (formErrors.purchase_price) setFormErrors({ ...formErrors, purchase_price: undefined });
                   }}
-                  className={`w-full px-3 py-2 bg-gray-700 border rounded-md text-white focus:outline-none focus:ring-2 ${formErrors.purchase_price ? 'border-red-500 focus:ring-red-500' : 'border-gray-600 focus:ring-green-500'}`}
+                  className={fieldClass(!!formErrors.purchase_price)}
                   placeholder="0.00"
                 />
                 {formErrors.purchase_price && (
-                  <div className="flex items-center mt-1 text-red-400 text-xs">
+                  <div className="flex items-center mt-1 text-destructive text-xs">
                     <AlertCircle className="w-3 h-3 mr-1" />
                     {formErrors.purchase_price}
                   </div>
@@ -592,38 +589,38 @@ export default function CondosPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
+                <label htmlFor="condos-f5" className="block text-sm font-medium text-foreground mb-1">
                   ขนาดพื้นที่ (ตร.ม.)
                 </label>
-                <input
+                <input id="condos-f5"
                   type="number"
                   min="0"
                   value={formData.area || ""}
                   onChange={(e) =>
                     setFormData({ ...formData, area: e.target.value })
                   }
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className={fieldClass()}
                   placeholder="เช่น 35.5"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1" htmlFor="condos-f6">
                   ระยะเวลากู้ (ปี)
                 </label>
-                <input
+                <input id="condos-f6"
                   type="number"
                   min="0"
                   value={formData.loan_term || ""}
                   onChange={(e) =>
                     setFormData({ ...formData, loan_term: e.target.value })
                   }
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className={fieldClass()}
                   placeholder="เช่น 30"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
-                  ยอดผ่อนต่อเดือน (บาท) <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-foreground mb-1" htmlFor="condos-f7">
+                  ยอดผ่อนต่อเดือน (บาท) <span className="text-destructive">*</span>
                 </label>
                 <NumericFormat
                   thousandSeparator=","
@@ -637,21 +634,21 @@ export default function CondosPage() {
                     });
                     if (formErrors.installment_amount) setFormErrors({ ...formErrors, installment_amount: undefined });
                   }}
-                  className={`w-full px-3 py-2 bg-gray-700 border rounded-md text-white focus:outline-none focus:ring-2 ${formErrors.installment_amount ? 'border-red-500 focus:ring-red-500' : 'border-gray-600 focus:ring-green-500'}`}
+                  className={fieldClass(!!formErrors.installment_amount)}
                   placeholder="0.00"
                 />
                 {formErrors.installment_amount && (
-                  <div className="flex items-center mt-1 text-red-400 text-xs">
+                  <div className="flex items-center mt-1 text-destructive text-xs">
                     <AlertCircle className="w-3 h-3 mr-1" />
                     {formErrors.installment_amount}
                   </div>
                 )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
-                  วันที่ครบชำระรายเดือน <span className="text-red-500">*</span>
+                <label htmlFor="condos-f7" className="block text-sm font-medium text-foreground mb-1">
+                  วันที่ครบชำระรายเดือน <span className="text-destructive">*</span>
                 </label>
-                <input
+                <input id="condos-f7"
                   type="text"
                   maxLength={20}
                   value={formData.payment_due_date || ""}
@@ -662,11 +659,11 @@ export default function CondosPage() {
                     });
                     if (formErrors.payment_due_date) setFormErrors({ ...formErrors, payment_due_date: undefined });
                   }}
-                  className={`w-full px-3 py-2 bg-gray-700 border rounded-md text-white focus:outline-none focus:ring-2 ${formErrors.payment_due_date ? 'border-red-500 focus:ring-red-500' : 'border-gray-600 focus:ring-green-500'}`}
+                  className={fieldClass(!!formErrors.payment_due_date)}
                   placeholder="ระบุวันครบชำระ"
                 />
                 {formErrors.payment_due_date && (
-                  <div className="flex items-center mt-1 text-red-400 text-xs">
+                  <div className="flex items-center mt-1 text-destructive text-xs">
                     <AlertCircle className="w-3 h-3 mr-1" />
                     {formErrors.payment_due_date}
                   </div>
@@ -674,10 +671,10 @@ export default function CondosPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1" htmlFor="condos-f8">
                   ผู้ขาย
                 </label>
-                <input
+                <input id="condos-f8"
                   type="text"
                   value={formData.seller}
                   maxLength={50}
@@ -685,7 +682,7 @@ export default function CondosPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, seller: e.target.value })
                   }
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className={fieldClass()}
                 />
               </div>
             </div>
@@ -695,7 +692,7 @@ export default function CondosPage() {
                 type="button"
                 onClick={resetForm}
                 disabled={isSaving}
-                className="px-4 py-2 border border-red-500 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 border border-destructive text-destructive rounded-lg hover:bg-destructive/90 hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 ยกเลิก
               </button>
@@ -703,7 +700,7 @@ export default function CondosPage() {
               <button
                 type="submit"
                 disabled={isSaving}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
               >
                 {isSaving ? (
                   <>
@@ -732,14 +729,14 @@ export default function CondosPage() {
         >
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-foreground mb-1" htmlFor="condos-f9">
                 ประเภทเอกสาร *
               </label>
-              <select
+              <select id="condos-f9"
                 required
                 value={documentType}
                 onChange={(e) => setDocumentType(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                className={fieldClass()}
               >
                 <option value="">เลือกประเภทเอกสาร</option>
                 {CONDO_DOCUMENT_TYPES.map((type) => (
@@ -778,13 +775,13 @@ export default function CondosPage() {
                   setUploadedFiles([]);
                   setDocumentType("");
                 }}
-                className="px-4 py-2 border border-red-500 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-colors"
+                className="px-4 py-2 border border-destructive text-destructive rounded-lg hover:bg-destructive/90 hover:text-foreground transition-colors"
               >
                 ยกเลิก
               </button>
               <button
                 onClick={handleFileSubmit}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={
                   uploadedFiles.length === 0 || !documentType || isUploading
                 }

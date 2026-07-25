@@ -6,7 +6,8 @@ const nextConfig = {
     optimizePackageImports: ['lucide-react', 'recharts', 'date-fns', 'react-number-format'],
   },
   typescript: {
-    ignoreBuildErrors: true,
+    // โปรเจกต์ type-check ผ่านทั้งหมดแล้ว จึงเปิดการตรวจสอบตอน build ไว้กันโค้ดพังเงียบ
+    ignoreBuildErrors: false,
   },
   images: {
     // เปิด Image Optimization

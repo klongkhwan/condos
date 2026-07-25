@@ -98,9 +98,9 @@ export function DatePicker({
   return (
     <div className={cn("flex flex-col", className)}>
       {label && (
-        <label htmlFor={id} className="block text-sm font-medium text-gray-300 mb-1">
+        <label htmlFor={id} className="block text-sm font-medium text-foreground mb-1">
           {label}
-          {required && <span className="text-red-500 ml-1">*</span>}
+          {required && <span className="text-destructive ml-1">*</span>}
         </label>
       )}
       <Popover open={open} onOpenChange={setOpen}>
@@ -111,16 +111,16 @@ export function DatePicker({
             type="button"
             disabled={disabled}
             className={cn(
-              "w-full justify-between font-normal bg-gray-700 border-gray-600 text-white hover:bg-gray-600 hover:text-white h-10 px-3 py-2",
+              "w-full justify-between font-normal bg-muted border-input text-foreground hover:bg-accent hover:text-foreground h-10 px-3 py-2",
               !internalDate && "text-muted-foreground",
-              error && "border-red-500"
+              error && "border-destructive"
             )}
           >
             {internalDate ? formatThaiDate(internalDate) : placeholder}
             <ChevronDownIcon className="h-4 w-4 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto overflow-hidden p-0 bg-zinc-900 border-zinc-800" align="start">
+        <PopoverContent className="w-auto overflow-hidden p-0 bg-card border-border" align="start">
           <Calendar
             mode="single"
             selected={internalDate}
@@ -132,7 +132,7 @@ export function DatePicker({
         </PopoverContent>
       </Popover>
       {error && (
-        <div className="flex items-center mt-1 text-red-400 text-xs">
+        <div className="flex items-center mt-1 text-destructive text-xs">
           <AlertCircle className="w-3 h-3 mr-1" />
           {error}
         </div>

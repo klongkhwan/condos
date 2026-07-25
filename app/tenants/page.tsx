@@ -16,21 +16,27 @@ import {
   AlertCircle,
   Info,
   Loader2,
+  Users,
 } from "lucide-react";
 import { MainLayout } from "@/components/layout/main-layout";
+import { fieldClass } from "@/components/ui/field";
+import { PageHeader } from "@/components/ui/page-header";
 import { DataTable } from "@/components/ui/data-table";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
-import { Notification } from "@/components/ui/notification";
+import { useNotification } from "@/lib/hooks/use-notification";
 import { Modal } from "@/components/ui/modal";
 import { DocumentPreview } from "@/components/ui/document-preview";
 import { ImageCompressInput } from "@/components/ui/image-compress-input";
 import { DatePicker } from "@/components/ui/date-picker";
 import { useAuth } from "@/lib/auth-context";
 import type { Tenant } from "@/lib/supabase";
-import { useCondos, useTenants, queryKeys } from "@/lib/hooks/use-queries";
-import { useQueryClient } from "@tanstack/react-query";
-import { useDocumentsDB } from "@/lib/hooks/use-database";
-import { tenantHistoryService } from "@/lib/database";
+import {
+  useCondos,
+  useTenants,
+  useDocuments,
+  useDataInvalidation,
+} from "@/lib/hooks/use-queries";
+
 import {
   uploadDocument,
   deleteDocumentAction,
@@ -53,9 +59,11 @@ const TENANT_DOCUMENT_TYPES = [
 
 export default function TenantsPage() {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
-  const { tenants, loading, refetch: refetchTenants } = useTenants(user?.id);
+  const { tenants, loading } = useTenants(user?.id);
   const { condos } = useCondos(user?.id);
+  const { afterTenantChange, afterDocumentChange } = useDataInvalidation(
+    user?.id,
+  );
   const [isEndContractModalOpen, setIsEndContractModalOpen] = useState(false);
   const [selectedTenantForEnd, setSelectedTenantForEnd] =
     useState<Tenant | null>(null);
@@ -71,10 +79,7 @@ export default function TenantsPage() {
   );
   const [selectedCondoFilter, setSelectedCondoFilter] = useState<string>("");
 
-  const [notification, setNotification] = useState<{
-      message: string;
-      type: "success" | "error";
-    } | null>(null);
+  const { setNotification, notificationElement } = useNotification();
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -129,8 +134,7 @@ export default function TenantsPage() {
   const {
     documents: tenantDocuments,
     loading: tenantDocumentsLoading,
-    refetch: refetchTenantDocuments,
-  } = useDocumentsDB({
+  } = useDocuments({
     tenantId: selectedTenantForFile?.id,
     scope: "tenant",
   });
@@ -196,7 +200,7 @@ export default function TenantsPage() {
     setIsInstallmentModalOpen(true);
   };
 
-  // Filter tenants based on status and condo - ใช้ tenants ที่ถูกกรองโดย useTenantsDB แล้ว
+  // Filter tenants based on status and condo - useTenants กรองตาม condo ของ user มาแล้ว
   const filteredTenants = tenants.filter((tenant) => {
     const statusMatch =
       statusFilter === "all" ||
@@ -241,7 +245,7 @@ export default function TenantsPage() {
             message: `บันทึกสำเร็จ`,
             type: "success",
           });
-          refetchTenants();
+          afterTenantChange();
         } else {
            throw new Error(result.message);
         }
@@ -252,7 +256,7 @@ export default function TenantsPage() {
              message: `บันทึกสำเร็จ`,
              type: "success",
            });
-           refetchTenants();
+           afterTenantChange();
         } else {
            throw new Error(result.message);
         }
@@ -332,9 +336,8 @@ export default function TenantsPage() {
         throw new Error(result.message);
       }
       
-      refetchTenants(); // Refresh data
+      afterTenantChange(); // Refresh data
       // Invalidate tenant history cache to ensure immediate update on the history page
-      queryClient.invalidateQueries({ queryKey: queryKeys.tenantHistory(user?.id) });
 
       // รีเซ็ตฟอร์ม
       setIsEndContractModalOpen(false);
@@ -368,7 +371,6 @@ export default function TenantsPage() {
     setUploadedFiles([]);
     setDocumentType("");
     setIsTenantFileModalOpen(true);
-    refetchTenantDocuments(); // Refetch documents when opening modal
   };
 
   const handleTenantFileSubmit = async () => {
@@ -400,7 +402,7 @@ export default function TenantsPage() {
       setUploadedFiles([]);
       setDocumentType("");
       setIsTenantFileModalOpen(false);
-      refetchTenantDocuments(); // Refetch documents after successful upload
+      afterDocumentChange(); // Refetch documents after successful upload
     } catch (error: any) {
       console.error("Error uploading files:", error);
       alert(`เกิดข้อผิดพลาดในการอัปโหลดไฟล์: ${error.message}`);
@@ -430,7 +432,7 @@ export default function TenantsPage() {
         throw new Error(result.message);
       }
       setNotification({message: `ลบเอกสารสำเร็จ`, type: "success",});
-      refetchTenantDocuments();
+      afterDocumentChange();
     } catch (error: any) {
       console.error("Error deleting document:", error);
       alert(`เกิดข้อผิดพลาดในการลบเอกสาร`);
@@ -503,17 +505,17 @@ export default function TenantsPage() {
             const DAYS_YELLOW_THRESHOLD = 90; // 4 เดือน
 
             // 4. กำหนด CSS Class ตามเงื่อนไข (ใช้ daysRemaining แทน monthsRemaining)
-            let endClass = "text-gray-400"; // สีเทา (ค่าเริ่มต้น)
+            let endClass = "text-muted-foreground"; // สีเทา (ค่าเริ่มต้น)
 
             if (daysRemaining <= DAYS_RED_THRESHOLD && daysRemaining > 0) {
                 // ใกล้ 2 เดือน (60 วัน) หรือน้อยกว่า: สีแดงอ่อน
-                endClass = "text-red-400 font-medium";
+                endClass = "text-destructive font-medium";
             } else if (daysRemaining <= DAYS_YELLOW_THRESHOLD && daysRemaining > 0) {
-                // ใกล้ 4 เดือน (120 วัน) หรือน้อยกว่า: สีเหลือง (ใช้ text-yellow-300 เพื่อให้ตรงกับ Badge)
-                endClass = "text-yellow-300";
+                // ใกล้ 4 เดือน (120 วัน) หรือน้อยกว่า: สีเหลือง (ใช้ text-warning เพื่อให้ตรงกับ Badge)
+                endClass = "text-warning";
             } else if (daysRemaining <= 0) {
                 // วันที่เลยกำหนดไปแล้ว
-                endClass = "text-red-600 font-bold italic"; // ใช้ text-red-300 เพื่อให้ตรงกับ Badge
+                endClass = "text-destructive font-bold italic"; // ใช้ text-destructive เพื่อให้ตรงกับ Badge
             }
             
             // 5. แสดงผลลัพธ์
@@ -530,7 +532,7 @@ export default function TenantsPage() {
                     </div>
                     <button
                         onClick={() => openInstallmentModal(tenant)}
-                        className="p-1 text-blue-400 hover:text-blue-300 hover:bg-blue-900/30 rounded transition-colors"
+                        className="p-1 text-info hover:text-info hover:bg-info-muted rounded transition-colors"
                         title="ดูงวดการเช่า"
                     >
                         <Info className="h-4 w-4" />
@@ -565,19 +567,19 @@ export default function TenantsPage() {
 
             if (!tenant.is_active) {
                 statusText = "ไม่ใช้งาน";
-                classNames = "bg-red-900 text-red-300";
+                classNames = "bg-destructive-muted text-destructive";
             } else if (isExpired) {
                 statusText = "หมดสัญญา";
-                classNames = "bg-red-900 text-red-600";
+                classNames = "bg-destructive-muted text-destructive";
             } else if (isVeryNearExpiring) {
                 statusText = "จะหมดสัญญา"; 
-                classNames = "bg-red-900/60 text-red-400"; 
+                classNames = "bg-destructive-muted/60 text-destructive"; 
             } else if (isExpiring) {
                 statusText = "ใกล้หมดสัญญา";
-                classNames = "bg-yellow-900 text-yellow-300";
+                classNames = "bg-warning-muted text-warning";
             } else {
                 statusText = "ใช้งาน";
-                classNames = "bg-green-900 text-green-300";
+                classNames = "bg-success-muted text-success";
             }
 
             return (
@@ -596,14 +598,14 @@ export default function TenantsPage() {
         <div className="flex space-x-2">
           <button
             onClick={() => handleEdit(tenant)}
-            className="text-blue-400 hover:text-blue-300"
+            className="text-info hover:text-info"
             title="แก้ไข"
           >
             <Edit className="h-4 w-4" />
           </button>
           <button
             onClick={() => openTenantFileModal(tenant)}
-            className="text-green-400 hover:text-green-300"
+            className="text-success hover:text-success"
             title="แนบไฟล์"
           >
             <FileText className="h-4 w-4" />
@@ -611,7 +613,7 @@ export default function TenantsPage() {
           {tenant.is_active && (
             <button
               onClick={() => handleEndContract(tenant)}
-              className="text-orange-400 hover:text-orange-300"
+              className="text-warning hover:text-warning"
               title="สิ้นสุดสัญญา"
             >
               <UserX className="h-4 w-4" />
@@ -626,46 +628,40 @@ export default function TenantsPage() {
     <MainLayout>
       <div className="space-y-4 sm:space-y-6">
         {/* Notification */}
-        {notification && (
-          <Notification
-            message={notification.message}
-            type={notification.type}
-            onClose={() => setNotification(null)}
-          />
-        )}
+        {notificationElement}
 
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-white">ผู้เช่า</h1>
-            <p className="text-sm sm:text-base text-gray-400">จัดการผู้เช่าและสัญญาเช่า</p>
-          </div>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="flex items-center px-3 py-2 sm:px-4 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm"
-          >
-            <Plus className="h-4 w-4 mr-1 sm:mr-2" />
-            เพิ่มผู้เช่า
-          </button>
-        </div>
+        <PageHeader
+          title="ผู้เช่า"
+          description="จัดการผู้เช่าและสัญญาเช่า"
+          icon={Users}
+          actions={
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="flex items-center px-3 py-2 sm:px-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors text-sm"
+            >
+              <Plus className="h-4 w-4 mr-1 sm:mr-2" />
+              เพิ่มผู้เช่า
+            </button>
+          }
+        />
 
         {/* Filters */}
-        <div className="bg-gray-800 rounded-lg border border-gray-700 p-3 sm:p-4">
+        <div className="bg-card rounded-lg border border-border p-3 sm:p-4">
           <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-            <Filter className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 hidden sm:block" />
+            <Filter className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground hidden sm:block" />
             <div className="flex flex-wrap items-center gap-3 sm:gap-4">
               <div className="flex items-center gap-2">
-                <label className="text-xs sm:text-sm font-medium text-gray-300">
+                <label className="text-xs sm:text-sm font-medium text-foreground" htmlFor="tenants-f1">
                   สถานะ:
                 </label>
-                <select
+                <select id="tenants-f1"
                   value={statusFilter}
                   onChange={(e) =>
                     setStatusFilter(
                       e.target.value as "all" | "active" | "vacant"
                     )
                   }
-                  className="px-2 py-1 sm:px-3 bg-gray-700 border border-gray-600 rounded text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="px-2 py-1 sm:px-3 bg-muted border border-input rounded text-foreground text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 >
                   <option value="active">มีผู้เช่า</option>
                   <option value="vacant">ห้องว่าง</option>
@@ -673,13 +669,13 @@ export default function TenantsPage() {
                 </select>
               </div>
               <div className="flex items-center gap-2">
-                <label className="text-xs sm:text-sm font-medium text-gray-300">
+                <label className="text-xs sm:text-sm font-medium text-foreground" htmlFor="tenants-f2">
                   คอนโด:
                 </label>
-                <select
+                <select id="tenants-f2"
                   value={selectedCondoFilter}
                   onChange={(e) => setSelectedCondoFilter(e.target.value)}
-                  className="px-2 py-1 sm:px-3 bg-gray-700 border border-gray-600 rounded text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-green-500 max-w-[120px] sm:max-w-none"
+                  className="px-2 py-1 sm:px-3 bg-muted border border-input rounded text-foreground text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-ring max-w-[120px] sm:max-w-none"
                 >
                   <option value="">ทั้งหมด</option>
                   {condos.map((condo) => (
@@ -690,7 +686,7 @@ export default function TenantsPage() {
                 </select>
               </div>
             </div>
-            <span className="text-xs sm:text-sm text-gray-400">
+            <span className="text-xs sm:text-sm text-muted-foreground">
               พบ {filteredTenants.length} รายการ
             </span>
           </div>
@@ -715,36 +711,36 @@ export default function TenantsPage() {
           <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
-                  ชื่อ-นามสกุล <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-foreground mb-1" htmlFor="tenants-f3">
+                  ชื่อ-นามสกุล <span className="text-destructive">*</span>
                 </label>
-                <input
+                <input id="tenants-f3"
                   type="text"
                   value={formData.full_name}
                   onChange={(e) => {
                     setFormData({ ...formData, full_name: e.target.value });
                     if (formErrors.full_name) setFormErrors({ ...formErrors, full_name: undefined });
                   }}
-                  className={`w-full px-3 py-2 bg-gray-700 border rounded-md text-white focus:outline-none focus:ring-2 ${formErrors.full_name ? 'border-red-500 focus:ring-red-500' : 'border-gray-600 focus:ring-green-500'}`}
+                  className={fieldClass(!!formErrors.full_name)}
                 />
                 {formErrors.full_name && (
-                  <div className="flex items-center mt-1 text-red-400 text-xs">
+                  <div className="flex items-center mt-1 text-destructive text-xs">
                     <AlertCircle className="w-3 h-3 mr-1" />
                     {formErrors.full_name}
                   </div>
                 )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
-                  คอนโด <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-foreground mb-1" htmlFor="tenants-f4">
+                  คอนโด <span className="text-destructive">*</span>
                 </label>
-                  <select
+                  <select id="tenants-f4"
                     value={formData.condo_id}
                     onChange={(e) => {
                       setFormData({ ...formData, condo_id: e.target.value });
                       if (formErrors.condo_id) setFormErrors({ ...formErrors, condo_id: undefined });
                     }}
-                    className={`w-full px-3 py-2 bg-gray-700 border rounded-md text-white focus:outline-none focus:ring-2 ${formErrors.condo_id ? 'border-red-500 focus:ring-red-500' : 'border-gray-600 focus:ring-green-500'}`}
+                    className={fieldClass(!!formErrors.condo_id)}
                   >
                     <option value="">เลือกคอนโด</option>
                     {condos.map((condo) => {
@@ -761,7 +757,7 @@ export default function TenantsPage() {
                     })}
                   </select>
                 {formErrors.condo_id && (
-                  <div className="flex items-center mt-1 text-red-400 text-xs">
+                  <div className="flex items-center mt-1 text-destructive text-xs">
                     <AlertCircle className="w-3 h-3 mr-1" />
                     {formErrors.condo_id}
                   </div>
@@ -771,37 +767,37 @@ export default function TenantsPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1" htmlFor="tenants-f5">
                   เบอร์โทรศัพท์
                 </label>
-                <input
+                <input id="tenants-f5"
                   type="tel"
                   value={formData.phone}
                   onChange={(e) =>
                     setFormData({ ...formData, phone: e.target.value })
                   }
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className={fieldClass()}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1" htmlFor="tenants-f6">
                   Line ID
                 </label>
-                <input
+                <input id="tenants-f6"
                   type="text"
                   value={formData.line_id}
                   onChange={(e) =>
                     setFormData({ ...formData, line_id: e.target.value })
                   }
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className={fieldClass()}
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
-                  วันที่เริ่มเช่า <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-foreground mb-1" htmlFor="tenants-f7">
+                  วันที่เริ่มเช่า <span className="text-destructive">*</span>
                 </label>
                 <DatePicker
                   id="rental_start"
@@ -830,8 +826,8 @@ export default function TenantsPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
-                  วันที่สิ้นสุดสัญญา <span className="text-red-500">*</span>
+                <label htmlFor="rental_end" className="block text-sm font-medium text-foreground mb-1">
+                  วันที่สิ้นสุดสัญญา <span className="text-destructive">*</span>
                 </label>
                 <DatePicker
                   id="rental_end"
@@ -849,24 +845,24 @@ export default function TenantsPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
+                <label htmlFor="tenants-f7" className="block text-sm font-medium text-foreground mb-1">
                   เงินประกัน (บาท)
                 </label>
-                <input
+                <input id="tenants-f7"
                   type="number"
                   step="0.01"
                   value={formData.deposit}
                   onChange={(e) =>
                     setFormData({ ...formData, deposit: e.target.value })
                   }
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className={fieldClass()}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
-                  ค่าเช่าต่อเดือน (บาท) <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-foreground mb-1" htmlFor="tenants-f8">
+                  ค่าเช่าต่อเดือน (บาท) <span className="text-destructive">*</span>
                 </label>
-                <input
+                <input id="tenants-f8"
                   type="number"
                   step="0.01"
                   value={formData.monthly_rent}
@@ -874,10 +870,10 @@ export default function TenantsPage() {
                     setFormData({ ...formData, monthly_rent: e.target.value });
                     if (formErrors.monthly_rent) setFormErrors({ ...formErrors, monthly_rent: undefined });
                   }}
-                  className={`w-full px-3 py-2 bg-gray-700 border rounded-md text-white focus:outline-none focus:ring-2 ${formErrors.monthly_rent ? 'border-red-500 focus:ring-red-500' : 'border-gray-600 focus:ring-green-500'}`}
+                  className={fieldClass(!!formErrors.monthly_rent)}
                 />
                 {formErrors.monthly_rent && (
-                  <div className="flex items-center mt-1 text-red-400 text-xs">
+                  <div className="flex items-center mt-1 text-destructive text-xs">
                     <AlertCircle className="w-3 h-3 mr-1" />
                     {formErrors.monthly_rent}
                   </div>
@@ -890,14 +886,14 @@ export default function TenantsPage() {
                 type="button"
                 onClick={resetForm}
                 disabled={isSaving}
-                className="px-4 py-2 border border-red-500 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 border border-destructive text-destructive rounded-lg hover:bg-destructive/90 hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 ยกเลิก
               </button>
               <button
                 type="submit"
                 disabled={isSaving}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
               >
                 {isSaving ? (
                   <>
@@ -923,18 +919,18 @@ export default function TenantsPage() {
           size="md"
         >
           <form onSubmit={submitEndContract} className="space-y-4">
-            <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-4">
-              <p className="text-yellow-300 text-sm">
+            <div className="bg-warning-muted/20 border border-warning/40 rounded-lg p-4">
+              <p className="text-warning text-sm">
                 การดำเนินการนี้จะย้ายผู้เช่า "{selectedTenantForEnd?.full_name}"
                 ไปยังประวัติผู้เช่า
               </p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-foreground mb-1" htmlFor="tenants-f9">
                 สาเหตุการสิ้นสุดสัญญา *
               </label>
-              <select
+              <select id="tenants-f9"
                 required
                 value={endContractData.end_reason}
                 onChange={(e) =>
@@ -946,7 +942,7 @@ export default function TenantsPage() {
                       | "changed_tenant",
                   })
                 }
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                className={fieldClass()}
               >
                 <option value="expired">หมดอายุสัญญา</option>
                 <option value="early_termination">ยกเลิกก่อนกำหนด</option>
@@ -955,7 +951,7 @@ export default function TenantsPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-foreground mb-1" htmlFor="tenants-f10">
                 วันที่ย้ายออกจริง *
               </label>
               <DatePicker
@@ -973,10 +969,10 @@ export default function TenantsPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
+              <label htmlFor="tenants-f10" className="block text-sm font-medium text-foreground mb-1">
                 หมายเหตุ
               </label>
-              <textarea
+              <textarea id="tenants-f10"
                 value={endContractData.notes}
                 onChange={(e) =>
                   setEndContractData({
@@ -984,7 +980,7 @@ export default function TenantsPage() {
                     notes: e.target.value,
                   })
                 }
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                className={fieldClass()}
                 rows={3}
                 placeholder="เช่น: ผู้เช่าย้ายงาน, ไม่พอใจบริการ, เปลี่ยนเป็นผู้เช่าใหม่ ฯลฯ"
               />
@@ -998,14 +994,14 @@ export default function TenantsPage() {
                   setSelectedTenantForEnd(null);
                 }}
                 disabled={isEndingContract}
-                className="px-4 py-2 border border-red-500 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 border border-destructive text-destructive rounded-lg hover:bg-destructive/90 hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 ยกเลิก
               </button>
               <button
                 type="submit"
                 disabled={isEndingContract}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
               >
                 {isEndingContract ? (
                   <>
@@ -1034,14 +1030,14 @@ export default function TenantsPage() {
         >
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-foreground mb-1" htmlFor="tenants-f11">
                 ประเภทเอกสาร *
               </label>
-              <select
+              <select id="tenants-f11"
                 required
                 value={documentType}
                 onChange={(e) => setDocumentType(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                className={fieldClass()}
               >
                 <option value="">เลือกประเภทเอกสาร</option>
                 {TENANT_DOCUMENT_TYPES.map((type) => (
@@ -1080,13 +1076,13 @@ export default function TenantsPage() {
                   setUploadedFiles([]);
                   setDocumentType("");
                 }}
-                className="px-4 py-2 border border-red-500 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-colors"
+                className="px-4 py-2 border border-destructive text-destructive rounded-lg hover:bg-destructive/90 hover:text-foreground transition-colors"
               >
                 ยกเลิก
               </button>
               <button
                 onClick={handleTenantFileSubmit}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={
                   uploadedFiles.length === 0 || !documentType || isUploading
                 }
@@ -1129,13 +1125,13 @@ export default function TenantsPage() {
         >
           <div className="space-y-4">
             {selectedTenantForInstallment && (
-              <div className="bg-gray-700/50 rounded-lg p-3 mb-4">
-                <div className="text-sm text-gray-300">
+              <div className="bg-muted rounded-lg p-3 mb-4">
+                <div className="text-sm text-foreground">
                   <span className="font-medium">ระยะเวลาสัญญา:</span>{" "}
                   {new Date(selectedTenantForInstallment.rental_start).toLocaleDateString("th-TH")} -{" "}
                   {new Date(selectedTenantForInstallment.rental_end).toLocaleDateString("th-TH")}
                 </div>
-                <div className="text-sm text-gray-400 mt-1">
+                <div className="text-sm text-muted-foreground mt-1">
                   รวม {installments.length} งวด
                 </div>
               </div>
@@ -1143,17 +1139,17 @@ export default function TenantsPage() {
             
             <div className="max-h-96 overflow-y-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-700 sticky top-0">
+                <thead className="bg-muted sticky top-0">
                   <tr>
-                    <th className="px-4 py-3 text-left text-gray-300 font-medium">งวดที่</th>
-                    <th className="px-4 py-3 text-left text-gray-300 font-medium">วันที่ - สิ้นเดือน</th>
+                    <th className="px-4 py-3 text-left text-foreground font-medium">งวดที่</th>
+                    <th className="px-4 py-3 text-left text-foreground font-medium">วันที่ - สิ้นเดือน</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-700">
+                <tbody className="divide-y divide-border">
                   {installments.map((inst) => (
-                    <tr key={inst.installmentNo} className="hover:bg-gray-700/50">
-                      <td className="px-4 py-3 text-white font-medium">{inst.installmentNo}</td>
-                      <td className="px-4 py-3 text-gray-300">
+                    <tr key={inst.installmentNo} className="hover:bg-accent/50">
+                      <td className="px-4 py-3 text-foreground font-medium">{inst.installmentNo}</td>
+                      <td className="px-4 py-3 text-foreground">
                         {inst.startDate.toLocaleDateString("th-TH")} - {inst.endDate.toLocaleDateString("th-TH")}
                       </td>
                     </tr>
@@ -1162,13 +1158,13 @@ export default function TenantsPage() {
               </table>
             </div>
 
-            <div className="flex justify-end pt-4 border-t border-gray-700">
+            <div className="flex justify-end pt-4 border-t border-border">
               <button
                 onClick={() => {
                   setIsInstallmentModalOpen(false);
                   setSelectedTenantForInstallment(null);
                 }}
-                className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition-colors"
+                className="px-4 py-2 bg-muted hover:bg-accent text-foreground rounded-lg transition-colors"
               >
                 ปิด
               </button>

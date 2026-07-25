@@ -1,13 +1,14 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   condoService,
   tenantService,
   rentPaymentService,
   incomeService,
   expenseService,
-  tenantHistoryService,
+  documentService,
+  type GetOptions,
 } from "../database";
 import { supabase } from "@/lib/supabase";
 import type {
@@ -18,6 +19,7 @@ import type {
   ExpenseRecord,
   TenantHistory,
   NotificationSummary,
+  Document,
 } from "../supabase";
 
 // ==================== Query Keys ====================
@@ -31,6 +33,9 @@ export const queryKeys = {
   tenantHistory: (userId?: string) => ["tenantHistory", userId] as const,
   notificationSummaries: (userId?: string) =>
     ["notificationSummaries", userId] as const,
+  documents: (filters?: DocumentFilters) => ["documents", filters] as const,
+  archivedTenant: (condoId?: string, fullName?: string) =>
+    ["archivedTenant", condoId, fullName] as const,
 };
 
 // ==================== Fetch Functions ====================
@@ -63,11 +68,12 @@ async function fetchTenants(userId?: string): Promise<Tenant[]> {
 }
 
 async function fetchPayments(userId?: string): Promise<RentPayment[]> {
+  if (!userId) return [];
+
   // Update overdue payments on load
   await rentPaymentService.updateOverduePayments();
 
   const allPayments = await rentPaymentService.getAll();
-  if (!userId) return allPayments;
 
   const userCondos = await condoService.getByUserId(userId);
   const userCondoIds = userCondos.map((c) => c.id);
@@ -80,14 +86,12 @@ async function fetchFinancialRecords(userId?: string): Promise<{
   incomeRecords: IncomeRecord[];
   expenseRecords: ExpenseRecord[];
 }> {
+  if (!userId) return { incomeRecords: [], expenseRecords: [] };
+
   const [allIncomeData, allExpenseData] = await Promise.all([
     incomeService.getAll(),
     expenseService.getAll(),
   ]);
-
-  if (!userId) {
-    return { incomeRecords: allIncomeData, expenseRecords: allExpenseData };
-  }
 
   const userCondos = await condoService.getByUserId(userId);
   const userCondoIds = userCondos.map((c) => c.id);
@@ -140,6 +144,26 @@ async function fetchNotificationSummaries(
   return data || [];
 }
 
+async function fetchDocuments({
+  condoId,
+  tenantId,
+  paymentId,
+  incomeId,
+  expenseId,
+  documentType,
+  scope,
+}: DocumentFilters): Promise<Document[]> {
+  const opts: GetOptions = { documentType, scope };
+
+  // Priority: income > expense > payment > condo > tenant
+  if (incomeId) return await documentService.getByIncomeId(incomeId, opts);
+  if (expenseId) return await documentService.getByExpenseId(expenseId, opts);
+  if (paymentId) return await documentService.getByPaymentId(paymentId, opts);
+  if (condoId) return await documentService.getByCondoId(condoId, opts);
+  if (tenantId) return await documentService.getByTenantId(tenantId, opts);
+  return [];
+}
+
 // ==================== Query Hooks ====================
 
 /**
@@ -147,8 +171,6 @@ async function fetchNotificationSummaries(
  * staleTime: 5 นาที (ข้อมูลเปลี่ยนไม่บ่อย)
  */
 export function useCondos(userId?: string) {
-  const queryClient = useQueryClient();
-
   const query = useQuery({
     queryKey: queryKeys.condos(userId),
     queryFn: () => fetchCondos(userId),
@@ -192,6 +214,7 @@ export function useRentPayments(userId?: string) {
   const query = useQuery({
     queryKey: queryKeys.payments(userId),
     queryFn: () => fetchPayments(userId),
+    enabled: !!userId,
     staleTime: 1 * 60 * 1000, // 1 minute
   });
 
@@ -211,6 +234,7 @@ export function useFinancialRecords(userId?: string) {
   const query = useQuery({
     queryKey: queryKeys.financialRecords(userId),
     queryFn: () => fetchFinancialRecords(userId),
+    enabled: !!userId,
     staleTime: 2 * 60 * 1000, // 2 minutes
   });
 
@@ -307,379 +331,107 @@ export function useNotifications(userId?: string) {
   };
 }
 
-// ==================== Mutation Hooks ====================
+export type DocumentFilters = {
+  condoId?: string;
+  tenantId?: string;
+  paymentId?: string;
+  incomeId?: string;
+  expenseId?: string;
+  documentType?: string;
+  scope?: GetOptions["scope"];
+};
 
 /**
- * Mutation สำหรับเพิ่ม Condo
+ * Hook สำหรับดึงเอกสารแนบ พร้อม caching
+ * ใช้ query key เดียวกันทุกที่ที่ filters ตรงกัน → cache ไม่หลุดจากกัน
+ * staleTime: 1 นาที
  */
-export function useAddCondo(userId?: string) {
+export function useDocuments(filters: DocumentFilters = {}) {
+  const { condoId, tenantId, paymentId, incomeId, expenseId } = filters;
+  const hasTarget = !!(condoId || tenantId || paymentId || incomeId || expenseId);
+
+  const query = useQuery({
+    queryKey: queryKeys.documents(filters),
+    queryFn: () => fetchDocuments(filters),
+    enabled: hasTarget,
+    staleTime: 1 * 60 * 1000, // 1 minute
+  });
+
+  return {
+    documents: query.data ?? [],
+    loading: hasTarget ? query.isLoading : false,
+    error: query.error?.message ?? null,
+    refetch: query.refetch,
+  };
+}
+
+/**
+ * หา tenant record (is_active = false) ที่ตรงกับ history ที่เลือก
+ * เพื่อใช้ดึงเอกสารของผู้เช่ารายนั้น
+ */
+export function useArchivedTenant(condoId?: string, fullName?: string) {
+  const query = useQuery({
+    queryKey: queryKeys.archivedTenant(condoId, fullName),
+    queryFn: () =>
+      condoId && fullName
+        ? tenantService.getArchivedTenant(condoId, fullName)
+        : null,
+    enabled: !!(condoId && fullName),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  return {
+    archivedTenant: query.data ?? null,
+    loading: query.isLoading,
+  };
+}
+
+// ==================== Invalidation ====================
+
+/**
+ * Cross-entity cache invalidation.
+ *
+ * tenants / payments / financialRecords / tenantHistory ทุกตัว derive scope
+ * ของตัวเองจาก condos ของ user (userCondoIds) ดังนั้นการแก้ condo ต้อง
+ * invalidate ทุก key ที่ derive จากมัน ไม่ใช่แค่ key ของ condos เอง
+ *
+ * ใช้ helper เหล่านี้หลังเรียก Server Action ทุกครั้ง แทนการ refetch เฉพาะ
+ * query ของหน้าตัวเอง — กัน cache ของหน้าอื่นค้างเป็นข้อมูลเก่า
+ */
+export function useDataInvalidation(userId?: string) {
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: async (condoData: Omit<Condo, "id" | "created_at">) => {
-      const newCondo = await condoService.create(condoData);
-      if (!newCondo) throw new Error("Failed to add condo");
-      return newCondo;
-    },
-    onSuccess: (newCondo) => {
-      queryClient.setQueryData(
+  const invalidate = (...keys: readonly (readonly unknown[])[]) =>
+    Promise.all(
+      keys.map((queryKey) => queryClient.invalidateQueries({ queryKey })),
+    );
+
+  return {
+    /** condo เปลี่ยน → ทุก entity ที่ scope ตาม condo ต้องโหลดใหม่ */
+    afterCondoChange: () =>
+      invalidate(
         queryKeys.condos(userId),
-        (old: Condo[] | undefined) => (old ? [newCondo, ...old] : [newCondo]),
-      );
-    },
-  });
-}
-
-/**
- * Mutation สำหรับอัพเดท Condo
- */
-export function useUpdateCondo(userId?: string) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({
-      id,
-      updates,
-    }: {
-      id: string;
-      updates: Partial<Condo>;
-    }) => {
-      const updated = await condoService.update(id, updates);
-      if (!updated) throw new Error("Failed to update condo");
-      return updated;
-    },
-    onSuccess: (updated) => {
-      queryClient.setQueryData(
-        queryKeys.condos(userId),
-        (old: Condo[] | undefined) =>
-          old?.map((c) => (c.id === updated.id ? updated : c)),
-      );
-    },
-  });
-}
-
-/**
- * Mutation สำหรับลบ Condo
- */
-export function useDeleteCondo(userId?: string) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (id: string) => {
-      const ok = await condoService.delete(id);
-      if (!ok) throw new Error("Failed to delete condo");
-      return id;
-    },
-    onSuccess: (deletedId) => {
-      queryClient.setQueryData(
-        queryKeys.condos(userId),
-        (old: Condo[] | undefined) => old?.filter((c) => c.id !== deletedId),
-      );
-    },
-  });
-}
-
-/**
- * Mutation สำหรับเพิ่ม Tenant
- */
-export function useAddTenant(userId?: string) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (tenantData: Omit<Tenant, "id" | "created_at">) => {
-      const newTenant = await tenantService.create(tenantData);
-      if (!newTenant) throw new Error("Failed to add tenant");
-      return newTenant;
-    },
-    onSuccess: (newTenant) => {
-      queryClient.setQueryData(
         queryKeys.tenants(userId),
-        (old: Tenant[] | undefined) =>
-          old ? [newTenant, ...old] : [newTenant],
-      );
-    },
-  });
-}
+        queryKeys.payments(userId),
+        queryKeys.financialRecords(userId),
+        queryKeys.tenantHistory(userId),
+      ),
 
-/**
- * Mutation สำหรับอัพเดท Tenant
- */
-export function useUpdateTenant(userId?: string) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({
-      id,
-      updates,
-    }: {
-      id: string;
-      updates: Partial<Tenant>;
-    }) => {
-      const updated = await tenantService.update(id, updates);
-      if (!updated) throw new Error("Failed to update tenant");
-      return updated;
-    },
-    onSuccess: (updated) => {
-      queryClient.setQueryData(
+    /** tenant เปลี่ยน → payments อ้าง tenant, history อาจได้ record ใหม่ */
+    afterTenantChange: () =>
+      invalidate(
         queryKeys.tenants(userId),
-        (old: Tenant[] | undefined) =>
-          old?.map((t) => (t.id === updated.id ? updated : t)),
-      );
-    },
-  });
-}
-
-/**
- * Mutation สำหรับสิ้นสุดสัญญาผู้เช่า
- */
-export function useEndTenantContract(userId?: string) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({
-      tenantId,
-      endData,
-      tenant,
-    }: {
-      tenantId: string;
-      endData: { end_reason: string; actual_end_date: string; notes?: string };
-      tenant: Tenant;
-    }) => {
-      const success = await tenantService.endContract(tenantId, endData);
-      if (!success) throw new Error("Failed to end tenant contract");
-
-      // Move to history
-      await tenantHistoryService.create({
-        condo_id: tenant.condo_id,
-        full_name: tenant.full_name,
-        phone: tenant.phone,
-        line_id: tenant.line_id,
-        rental_start: tenant.rental_start,
-        rental_end: tenant.rental_end,
-        actual_end_date: endData.actual_end_date,
-        deposit: tenant.deposit,
-        monthly_rent: tenant.monthly_rent,
-        end_reason: endData.end_reason as any,
-        notes: endData.notes,
-      });
-
-      return tenantId;
-    },
-    onSuccess: (tenantId) => {
-      queryClient.setQueryData(
-        queryKeys.tenants(userId),
-        (old: Tenant[] | undefined) => old?.filter((t) => t.id !== tenantId),
-      );
-      // Invalidate tenant history to refetch
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.tenantHistory(userId),
-      });
-    },
-  });
-}
-
-/**
- * Mutation สำหรับเพิ่ม Payment
- */
-export function useAddPayment(userId?: string) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (paymentData: Omit<RentPayment, "id" | "created_at">) => {
-      const newPayment = await rentPaymentService.create(paymentData);
-      if (!newPayment) throw new Error("Failed to add payment");
-      return newPayment;
-    },
-    onSuccess: (newPayment) => {
-      queryClient.setQueryData(
         queryKeys.payments(userId),
-        (old: RentPayment[] | undefined) =>
-          old ? [newPayment, ...old] : [newPayment],
-      );
-    },
-  });
-}
+        queryKeys.tenantHistory(userId),
+      ),
 
-/**
- * Mutation สำหรับอัพเดท Payment
- */
-export function useUpdatePayment(userId?: string) {
-  const queryClient = useQueryClient();
+    /** payment เปลี่ยน → กระทบ dashboard/reports ที่อ่าน key เดียวกัน */
+    afterPaymentChange: () => invalidate(queryKeys.payments(userId)),
 
-  return useMutation({
-    mutationFn: async ({
-      id,
-      updates,
-    }: {
-      id: string;
-      updates: Partial<RentPayment>;
-    }) => {
-      const updated = await rentPaymentService.update(id, updates);
-      if (!updated) throw new Error("Failed to update payment");
-      return updated;
-    },
-    onSuccess: (updated) => {
-      queryClient.setQueryData(
-        queryKeys.payments(userId),
-        (old: RentPayment[] | undefined) =>
-          old?.map((p) => (p.id === updated.id ? updated : p)),
-      );
-    },
-  });
-}
+    /** income/expense เปลี่ยน */
+    afterFinancialChange: () => invalidate(queryKeys.financialRecords(userId)),
 
-/**
- * Mutation สำหรับลบ Payment
- */
-export function useDeletePayment(userId?: string) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (id: string) => {
-      const success = await rentPaymentService.delete(id);
-      if (!success) throw new Error("Failed to delete payment");
-      return id;
-    },
-    onSuccess: (deletedId) => {
-      queryClient.setQueryData(
-        queryKeys.payments(userId),
-        (old: RentPayment[] | undefined) =>
-          old?.filter((p) => p.id !== deletedId),
-      );
-    },
-  });
-}
-
-/**
- * Mutation สำหรับเพิ่ม Income Record
- */
-export function useAddIncomeRecord(userId?: string) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (recordData: Omit<IncomeRecord, "id" | "created_at">) => {
-      const newRecord = await incomeService.create(recordData);
-      if (!newRecord) throw new Error("Failed to add income record");
-      return newRecord;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.financialRecords(userId),
-      });
-    },
-  });
-}
-
-/**
- * Mutation สำหรับเพิ่ม Expense Record
- */
-export function useAddExpenseRecord(userId?: string) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (
-      recordData: Omit<ExpenseRecord, "id" | "created_at">,
-    ) => {
-      const newRecord = await expenseService.create(recordData);
-      if (!newRecord) throw new Error("Failed to add expense record");
-      return newRecord;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.financialRecords(userId),
-      });
-    },
-  });
-}
-
-/**
- * Mutation สำหรับอัพเดท Income Record
- */
-export function useUpdateIncomeRecord(userId?: string) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({
-      id,
-      updates,
-    }: {
-      id: string;
-      updates: Partial<IncomeRecord>;
-    }) => {
-      const updated = await incomeService.update(id, updates);
-      if (!updated) throw new Error("Failed to update income record");
-      return updated;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.financialRecords(userId),
-      });
-    },
-  });
-}
-
-/**
- * Mutation สำหรับอัพเดท Expense Record
- */
-export function useUpdateExpenseRecord(userId?: string) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({
-      id,
-      updates,
-    }: {
-      id: string;
-      updates: Partial<ExpenseRecord>;
-    }) => {
-      const updated = await expenseService.update(id, updates);
-      if (!updated) throw new Error("Failed to update expense record");
-      return updated;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.financialRecords(userId),
-      });
-    },
-  });
-}
-
-/**
- * Mutation สำหรับลบ Income Record
- */
-export function useDeleteIncomeRecord(userId?: string) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (id: string) => {
-      const success = await incomeService.delete(id);
-      if (!success) throw new Error("Failed to delete income record");
-      return id;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.financialRecords(userId),
-      });
-    },
-  });
-}
-
-/**
- * Mutation สำหรับลบ Expense Record
- */
-export function useDeleteExpenseRecord(userId?: string) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (id: string) => {
-      const success = await expenseService.delete(id);
-      if (!success) throw new Error("Failed to delete expense record");
-      return id;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.financialRecords(userId),
-      });
-    },
-  });
+    /** เอกสารเปลี่ยน → invalidate ทุก filters (prefix match) */
+    afterDocumentChange: () => invalidate(["documents"]),
+  };
 }

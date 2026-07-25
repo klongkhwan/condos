@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   History,
   Calendar,
@@ -12,8 +12,9 @@ import {
   CreditCard,
   Download,
   ExternalLink,
-  Eye, 
+  Eye,
 } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
 import { MainLayout } from "@/components/layout/main-layout";
 
 import { DataTable } from "@/components/ui/data-table";
@@ -21,9 +22,14 @@ import { Modal } from "@/components/ui/modal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DocumentPreview } from "@/components/ui/document-preview";
 import { ImagePreviewModal } from "@/components/ui/image-preview-modal";
-import { useCondos, useTenantHistory, useRentPayments } from "@/lib/hooks/use-queries";
-import { useDocumentsDB } from "@/lib/hooks/use-database"; // Import documents hook
-import { tenantService } from "@/lib/database"; // Import tenantService
+import {
+  useCondos,
+  useTenantHistory,
+  useRentPayments,
+  useDocuments,
+  useArchivedTenant,
+} from "@/lib/hooks/use-queries";
+
 import { useAuth } from "@/lib/auth-context";
 import type { TenantHistory } from "@/lib/supabase";
 
@@ -36,11 +42,15 @@ export default function TenantHistoryPage() {
   const [selectedHistory, setSelectedHistory] = useState<TenantHistory | null>(
     null
   );
-  // State for matched inactive tenant ID
-  const [matchedTenantId, setMatchedTenantId] = useState<string | undefined>(undefined);
-  
+  // Matched inactive tenant for the selected history row
+  const { archivedTenant } = useArchivedTenant(
+    selectedHistory?.condo_id,
+    selectedHistory?.full_name
+  );
+  const matchedTenantId = archivedTenant?.id;
+
   // Fetch documents for the matched tenant
-  const { documents, loading: loadingDocs } = useDocumentsDB({ tenantId: matchedTenantId });
+  const { documents, loading: loadingDocs } = useDocuments({ tenantId: matchedTenantId });
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCondo, setSelectedCondo] = useState<string>("");
@@ -60,25 +70,6 @@ export default function TenantHistoryPage() {
     { value: "house_registration", label: "สำเนาทะเบียนบ้าน" },
     { value: "other", label: "อื่นๆ" },
   ];
-
-  useEffect(() => {
-    const findTenant = async () => {
-      if (selectedHistory) {
-        const tenant = await tenantService.getArchivedTenant(
-          selectedHistory.condo_id,
-          selectedHistory.full_name
-        );
-        if (tenant) {
-          setMatchedTenantId(tenant.id);
-        } else {
-          setMatchedTenantId(undefined);
-        }
-      } else {
-        setMatchedTenantId(undefined);
-      }
-    };
-    findTenant();
-  }, [selectedHistory]);
 
   // Calculate stats
   const tenantPayments = matchedTenantId 
@@ -113,13 +104,13 @@ export default function TenantHistoryPage() {
   const getEndReasonColor = (reason?: string) => {
     switch (reason) {
       case "expired":
-        return "bg-blue-900 text-blue-300";
+        return "bg-info-muted text-info";
       case "early_termination":
-        return "bg-red-900 text-red-300";
+        return "bg-destructive-muted text-destructive";
       case "changed_tenant":
-        return "bg-yellow-900 text-yellow-300";
+        return "bg-warning-muted text-warning";
       default:
-        return "bg-gray-900 text-gray-300";
+        return "bg-card text-foreground";
     }
   };
 
@@ -129,7 +120,7 @@ export default function TenantHistoryPage() {
       header: "ชื่อผู้เช่า",
       render: (history: TenantHistory) => (
         <div className="flex items-center">
-          <User className="h-4 w-4 mr-2 text-gray-400" />
+          <User className="h-4 w-4 mr-2 text-muted-foreground" />
           {history.full_name}
         </div>
       ),
@@ -152,7 +143,7 @@ export default function TenantHistoryPage() {
             <Calendar className="h-3 w-3 mr-1" />
             {new Date(history.rental_start).toLocaleDateString("th-TH")}
           </div>
-          <div className="text-gray-400">
+          <div className="text-muted-foreground">
             ถึง {new Date(history.rental_end).toLocaleDateString("th-TH")}
           </div>
         </div>
@@ -192,7 +183,7 @@ export default function TenantHistoryPage() {
             setSelectedHistory(history);
             setIsModalOpen(true);
           }}
-          className="flex items-center px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors"
+          className="flex items-center px-3 py-1 bg-info hover:bg-info/90 text-info-foreground text-xs rounded transition-colors"
         >
           <FileText className="h-3 w-3 mr-1" />
           ดูรายละเอียด
@@ -204,28 +195,22 @@ export default function TenantHistoryPage() {
   return (
     <MainLayout>
       <div className="space-y-4 sm:space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-white flex items-center">
-              ประวัติผู้เช่า
-            </h1>
-            <p className="text-sm sm:text-base text-gray-400">
-              ประวัติผู้เช่าทั้งหมดที่เคยอาศัยในคอนโดของคุณ
-            </p>
-          </div>
-        </div>
+        <PageHeader
+          title="ประวัติผู้เช่า"
+          description="ประวัติผู้เช่าทั้งหมดที่เคยอาศัยในคอนโดของคุณ"
+          icon={History}
+        />
 
         {/* Filter */}
-        <div className="bg-gray-800 rounded-lg border border-gray-700 p-3 sm:p-4">
+        <div className="bg-card rounded-lg border border-border p-3 sm:p-4">
           <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-            <label className="text-xs sm:text-sm font-medium text-gray-300">
+            <label className="text-xs sm:text-sm font-medium text-foreground" htmlFor="tenant-history-f1">
               กรองตามห้อง:
             </label>
-            <select
+            <select id="tenant-history-f1"
               value={selectedCondo}
               onChange={(e) => setSelectedCondo(e.target.value)}
-              className="px-2 py-1.5 sm:px-3 sm:py-2 bg-gray-700 border border-gray-600 rounded-md text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-green-500 max-w-[150px] sm:max-w-none"
+              className="px-2 py-1.5 sm:px-3 sm:py-2 bg-muted border border-input rounded-md text-foreground text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-ring max-w-[150px] sm:max-w-none"
             >
               <option value="">ทุกห้อง</option>
               {condos?.map((condo) => (
@@ -234,7 +219,7 @@ export default function TenantHistoryPage() {
                 </option>
               ))}
             </select>
-            <span className="text-xs sm:text-sm text-gray-400">
+            <span className="text-xs sm:text-sm text-muted-foreground">
               พบ {filteredHistory.length} รายการ
             </span>
           </div>
@@ -262,10 +247,10 @@ export default function TenantHistoryPage() {
             <div className="space-y-6">
               {/* Header Section */}
               {/* Minimal Header */}
-              <div className="flex items-start justify-between border-b border-gray-700 pb-4 mb-4">
+              <div className="flex items-start justify-between border-b border-border pb-4 mb-4">
                 <div>
                    <div className="flex items-center gap-2 mb-1">
-                    <h2 className="text-xl font-bold text-white">{selectedHistory.full_name}</h2>
+                    <h2 className="text-xl font-bold text-foreground">{selectedHistory.full_name}</h2>
                     <span
                       className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${getEndReasonColor(
                         selectedHistory.end_reason
@@ -274,7 +259,7 @@ export default function TenantHistoryPage() {
                       {getEndReasonText(selectedHistory.end_reason)}
                     </span>
                    </div>
-                  <div className="flex items-center text-gray-400 text-sm">
+                  <div className="flex items-center text-muted-foreground text-sm">
                     {(() => {
                       const condo = condos?.find((c) => c.id === selectedHistory.condo_id);
                       return condo ? `${condo.name} (${condo.room_number})` : "ไม่ทราบห้อง";
@@ -284,7 +269,7 @@ export default function TenantHistoryPage() {
               </div>
 
               <Tabs defaultValue="general" className="w-full">
-                <TabsList className="grid w-full grid-cols-3 bg-gray-800 p-1 border border-gray-600 rounded-lg">
+                <TabsList className="grid w-full grid-cols-3 bg-card p-1 border border-input rounded-lg">
                   <TabsTrigger 
                     value="general"
                     className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
@@ -308,58 +293,58 @@ export default function TenantHistoryPage() {
                 {/* Tab 1: General Info */}
                 <TabsContent value="general" className="mt-4 space-y-4">
                   {selectedHistory.notes && (
-                    <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700/50">
-                       <h3 className="text-sm font-medium text-gray-400 mb-2 flex items-center">
+                    <div className="bg-surface-raised rounded-xl p-4 border border-border/50">
+                       <h3 className="text-sm font-medium text-muted-foreground mb-2 flex items-center">
                           <FileText className="w-4 h-4 mr-2" />
                           หมายเหตุ
                        </h3>
-                       <p className="text-gray-300 text-sm leading-relaxed">{selectedHistory.notes}</p>
+                       <p className="text-foreground text-sm leading-relaxed">{selectedHistory.notes}</p>
                     </div>
                   )}
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Contact Card */}
-                    <div className="bg-gray-800/50 p-4 rounded-xl border border-gray-700/50">
-                      <h3 className="text-sm font-medium text-gray-400 mb-4 flex items-center border-b border-gray-700/50 pb-2">
+                    <div className="bg-surface-raised p-4 rounded-xl border border-border/50">
+                      <h3 className="text-sm font-medium text-muted-foreground mb-4 flex items-center border-b border-border/50 pb-2">
                         <User className="w-4 h-4 mr-2" />
                         ข้อมูลติดต่อ
                       </h3>
                       <div className="space-y-3">
                         {selectedHistory.phone && (
                           <div className="flex justify-between items-center text-sm">
-                            <span className="text-gray-500">เบอร์โทรศัพท์</span>
-                            <span className="text-gray-200 bg-gray-700/30 px-2 py-1 rounded">{selectedHistory.phone}</span>
+                            <span className="text-muted-foreground">เบอร์โทรศัพท์</span>
+                            <span className="text-foreground bg-muted/30 px-2 py-1 rounded">{selectedHistory.phone}</span>
                           </div>
                         )}
                         {selectedHistory.line_id && (
                           <div className="flex justify-between items-center text-sm">
-                            <span className="text-gray-500">Line ID</span>
-                            <span className="text-gray-200 bg-gray-700/30 px-2 py-1 rounded">{selectedHistory.line_id}</span>
+                            <span className="text-muted-foreground">Line ID</span>
+                            <span className="text-foreground bg-muted/30 px-2 py-1 rounded">{selectedHistory.line_id}</span>
                           </div>
                         )}
                         <div className="flex justify-between items-center text-sm">
-                          <span className="text-gray-500">วันที่ย้ายออก</span>
-                          <span className="text-gray-200">{new Date(selectedHistory.moved_out_at).toLocaleDateString("th-TH")}</span>
+                          <span className="text-muted-foreground">วันที่ย้ายออก</span>
+                          <span className="text-foreground">{new Date(selectedHistory.moved_out_at).toLocaleDateString("th-TH")}</span>
                         </div>
                       </div>
                     </div>
 
                     {/* Contract Card */}
-                    <div className="bg-gray-800/50 p-4 rounded-xl border border-gray-700/50">
-                      <h3 className="text-sm font-medium text-gray-400 mb-4 flex items-center border-b border-gray-700/50 pb-2">
+                    <div className="bg-surface-raised p-4 rounded-xl border border-border/50">
+                      <h3 className="text-sm font-medium text-muted-foreground mb-4 flex items-center border-b border-border/50 pb-2">
                         <Calendar className="w-4 h-4 mr-2" />
                         รายละเอียดสัญญา
                       </h3>
                       <div className="space-y-3">
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-500">ระยะเวลาเช่า</span>
-                          <span className="text-gray-200">
+                          <span className="text-muted-foreground">ระยะเวลาเช่า</span>
+                          <span className="text-foreground">
                             {new Date(selectedHistory.rental_start).toLocaleDateString("th-TH")} - {new Date(selectedHistory.rental_end).toLocaleDateString("th-TH")}
                           </span>
                         </div>
                         <div className="flex justify-between items-center text-sm">
-                          <span className="text-gray-500">จำนวนเดือน</span>
-                          <span className="text-white font-medium">
+                          <span className="text-muted-foreground">จำนวนเดือน</span>
+                          <span className="text-foreground font-medium">
                             {(() => {
                               const start = new Date(selectedHistory.rental_start);
                               const end = new Date(selectedHistory.moved_out_at);
@@ -372,13 +357,13 @@ export default function TenantHistoryPage() {
                           </span>
                         </div>
                         <div className="flex justify-between items-center text-sm">
-                          <span className="text-gray-500">ค่าเช่า/เดือน</span>
-                          <span className="text-white font-medium bg-green-900/20 text-green-400 px-2 py-1 rounded">฿{selectedHistory.monthly_rent.toLocaleString()}</span>
+                          <span className="text-muted-foreground">ค่าเช่า/เดือน</span>
+                          <span className="text-foreground font-medium bg-success-muted/20 text-success px-2 py-1 rounded">฿{selectedHistory.monthly_rent.toLocaleString()}</span>
                         </div>
                         {selectedHistory.deposit && (
                         <div className="flex justify-between items-center text-sm">
-                          <span className="text-gray-500">เงินประกัน</span>
-                          <span className="text-white font-medium">฿{selectedHistory.deposit.toLocaleString()}</span>
+                          <span className="text-muted-foreground">เงินประกัน</span>
+                          <span className="text-foreground font-medium">฿{selectedHistory.deposit.toLocaleString()}</span>
                         </div>
                         )}
                       </div>
@@ -389,7 +374,7 @@ export default function TenantHistoryPage() {
                 {/* Tab 2: Documents */}
                 <TabsContent value="documents" className="mt-4">
                   {matchedTenantId ? (
-                    <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 p-4">
+                    <div className="bg-surface-raised rounded-xl border border-border/50 p-4">
                       <DocumentPreview
                         documents={filteredDocuments}
                         documentTypes={DOCUMENT_TYPES}
@@ -399,7 +384,7 @@ export default function TenantHistoryPage() {
                       />
                     </div>
                   ) : (
-                    <div className="flex h-[200px] items-center justify-center text-gray-500 bg-gray-800/30 rounded-xl border border-dashed border-gray-700">
+                    <div className="flex h-[200px] items-center justify-center text-muted-foreground bg-card/30 rounded-xl border border-dashed border-border">
                       ไม่พบข้อมูลเอกสาร
                     </div>
                   )}
@@ -411,32 +396,32 @@ export default function TenantHistoryPage() {
                     <>
                       {/* Financial Summary Card */}
                       {/* Financial Summary Card */}
-                      <div className="bg-gray-800/60 border border-green-900/40 rounded-lg px-4 py-3 flex items-center justify-between">
+                      <div className="bg-surface-raised border border-primary/25 rounded-lg px-4 py-3 flex items-center justify-between">
                          <div className="flex items-center gap-3">
-                           <div className="p-1.5 bg-green-900/20 rounded-md text-green-400">
+                           <div className="p-1.5 bg-success-muted/20 rounded-md text-success">
                               <DollarSign className="w-4 h-4" />
                            </div>
                            <div className="flex flex-col">
-                             <span className="text-sm text-green-400 font-medium leading-none mb-1">รวมค่าเช่าที่จ่ายแล้ว</span>
+                             <span className="text-sm text-success font-medium leading-none mb-1">รวมค่าเช่าที่จ่ายแล้ว</span>
                              <div className="flex items-baseline gap-2 leading-none">
-                                <span className="text-lg font-bold text-white">฿{totalRentPaid.toLocaleString()}</span>
-                                <span className="text-[10px] text-gray-500">({paidPayments.length} งวด)</span>
+                                <span className="text-lg font-bold text-foreground">฿{totalRentPaid.toLocaleString()}</span>
+                                <span className="text-[10px] text-muted-foreground">({paidPayments.length} งวด)</span>
                              </div>
                            </div>
                          </div>
                       </div>
 
                       {/* Payment History Table */}
-                      <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden flex flex-col max-h-[400px]">
-                        <div className="p-3 border-b border-gray-700 bg-gray-700/50 shrink-0">
-                           <h3 className="text-sm font-medium text-white flex items-center">
-                              <History className="w-4 h-4 mr-2 text-blue-400"/>
+                      <div className="bg-card rounded-xl border border-border overflow-hidden flex flex-col max-h-[400px]">
+                        <div className="p-3 border-b border-border bg-muted shrink-0">
+                           <h3 className="text-sm font-medium text-foreground flex items-center">
+                              <History className="w-4 h-4 mr-2 text-info"/>
                               ประวัติการชำระเงิน
                            </h3>
                         </div>
                         <div className="overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
                            <table className="w-full text-sm text-left">
-                              <thead className="bg-gray-700/30 text-xs uppercase text-gray-400 sticky top-0 backdrop-blur-sm z-10">
+                              <thead className="bg-muted/30 text-xs uppercase text-muted-foreground sticky top-0 backdrop-blur-sm z-10">
                                  <tr>
                                     <th className="px-4 py-3 text-center w-16">งวดที่</th>
                                     <th className="px-4 py-3">งวดเดือน</th>
@@ -446,29 +431,29 @@ export default function TenantHistoryPage() {
                                     <th className="px-4 py-3 text-center">สลิป</th>
                                  </tr>
                               </thead>
-                              <tbody className="divide-y divide-gray-700/50">
+                              <tbody className="divide-y divide-border/50">
                                  {tenantPayments.length > 0 ? (
                                     tenantPayments.map((payment, index) => {
                                        // Find slip for this payment
                                        const slip = documents.find(d => d.payment_id === payment.id);
                                        return (
-                                          <tr key={payment.id} className="hover:bg-gray-700/30 transition-colors">
-                                             <td className="px-4 py-3 text-center text-gray-500 text-xs">
+                                          <tr key={payment.id} className="hover:bg-accent/30 transition-colors">
+                                             <td className="px-4 py-3 text-center text-muted-foreground text-xs">
                                                 {index + 1}
                                              </td>
-                                             <td className="px-4 py-3 text-gray-200">
+                                             <td className="px-4 py-3 text-foreground">
                                                 {new Date(payment.due_date).toLocaleDateString("th-TH", { month: 'long', year: 'numeric' })}
                                              </td>
-                                             <td className="px-4 py-3 text-gray-400">
+                                             <td className="px-4 py-3 text-muted-foreground">
                                                 {payment.paid_date ? new Date(payment.paid_date).toLocaleDateString("th-TH") : "-"}
                                              </td>
-                                             <td className="px-4 py-3 text-right font-medium text-white">
+                                             <td className="px-4 py-3 text-right font-medium text-foreground">
                                                 ฿{payment.amount.toLocaleString()}
                                              </td>
                                              <td className="px-4 py-3 text-center">
                                                 <span className={`px-2 py-0.5 rounded-full text-[10px] ${
-                                                   payment.status === 'paid' ? 'bg-green-900/50 text-green-400' : 
-                                                   payment.status === 'overdue' ? 'bg-red-900/50 text-red-400' : 'bg-yellow-900/50 text-yellow-400'
+                                                   payment.status === 'paid' ? 'bg-success-muted/50 text-success' : 
+                                                   payment.status === 'overdue' ? 'bg-destructive-muted/50 text-destructive' : 'bg-warning-muted/50 text-warning'
                                                 }`}>
                                                    {payment.status === 'paid' ? 'จ่ายแล้ว' : payment.status === 'overdue' ? 'ค้างชำระ' : 'รอชำระ'}
                                                 </span>
@@ -481,13 +466,13 @@ export default function TenantHistoryPage() {
                                                         name: slip.name,
                                                         type: "สลิปโอนเงิน"
                                                       })}
-                                                      className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white transition-colors"
+                                                      className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-info-muted text-info hover:bg-info/90 hover:text-foreground transition-colors"
                                                       title="ดูสลิป"
                                                    >
                                                       <Eye className="w-3 h-3" />
                                                    </button>
                                                 ) : (
-                                                   <span className="text-gray-600 text-[10px]">-</span>
+                                                   <span className="text-muted-foreground text-[10px]">-</span>
                                                 )}
                                              </td>
                                           </tr>
@@ -495,7 +480,7 @@ export default function TenantHistoryPage() {
                                     })
                                  ) : (
                                     <tr>
-                                       <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                                       <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
                                           ไม่มีประวัติการชำระเงิน
                                        </td>
                                     </tr>
@@ -506,7 +491,7 @@ export default function TenantHistoryPage() {
                       </div>
                     </>
                   ) : (
-                    <div className="flex h-[200px] items-center justify-center text-gray-500 bg-gray-800/30 rounded-xl border border-dashed border-gray-700">
+                    <div className="flex h-[200px] items-center justify-center text-muted-foreground bg-card/30 rounded-xl border border-dashed border-border">
                       ไม่พบข้อมูลการเงิน
                     </div>
                   )}
@@ -519,7 +504,7 @@ export default function TenantHistoryPage() {
                     setIsModalOpen(false);
                     setSelectedHistory(null);
                   }}
-                  className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded-lg transition-colors font-medium"
+                  className="px-6 py-2 bg-muted hover:bg-accent text-foreground text-sm rounded-lg transition-colors font-medium"
                 >
                   ปิด
                 </button>

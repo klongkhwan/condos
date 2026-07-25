@@ -1,8 +1,28 @@
 "use client"
 import Link from "next/link"
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
-import { Home, Building2, Users, CreditCard, TrendingUp, FileText, Bell, Settings, LogOut, History, Loader2, ChevronsLeft, ChevronsRight, Menu, X, Wallet } from "lucide-react"
+import {
+  Bell,
+  Building2,
+  ChevronsLeft,
+  ChevronsRight,
+  CreditCard,
+  FileText,
+  History,
+  Home,
+  Loader2,
+  LogOut,
+  Menu,
+  Moon,
+  Settings,
+  Sun,
+  TrendingUp,
+  Users,
+  Wallet,
+  X,
+} from "lucide-react"
+import { useTheme } from "next-themes"
 import { useAuth } from "@/lib/auth-context"
 import { cn } from "@/lib/utils"
 
@@ -24,26 +44,49 @@ const navigation = [
   { name: "การแจ้งเตือน", href: "/notifications", icon: Bell },
 ]
 
+function ThemeToggle({ collapsed }: { collapsed: boolean }) {
+  const { resolvedTheme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => setMounted(true), [])
+
+  const isDark = resolvedTheme === "dark"
+  const Icon = !mounted ? Moon : isDark ? Sun : Moon
+  const label = !mounted ? "สลับธีม" : isDark ? "โหมดสว่าง" : "โหมดมืด"
+
+  return (
+    <button
+      type="button"
+      onClick={() => setTheme(isDark ? "light" : "dark")}
+      aria-label={label}
+      title={label}
+      className={cn(
+        "flex w-full items-center rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+        collapsed && "md:justify-center",
+      )}
+    >
+      <Icon className={cn("h-4 w-4 shrink-0", !collapsed && "mr-2")} />
+      {!collapsed && <span className="whitespace-nowrap text-xs">{label}</span>}
+    </button>
+  )
+}
+
 export function Sidebar({ onOpenProfileModal, isMobileOpen = false, onMobileClose }: SidebarProps) {
   const pathname = usePathname()
   const { user, logout } = useAuth()
   const router = useRouter()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(() => {
-    // Initialize from localStorage on client side
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('sidebarCollapsed')
-      return saved === 'true'
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("sidebarCollapsed") === "true"
     }
     return false
   })
 
-  // Sync collapsed state with localStorage
   useEffect(() => {
-    localStorage.setItem('sidebarCollapsed', isCollapsed.toString())
+    localStorage.setItem("sidebarCollapsed", isCollapsed.toString())
   }, [isCollapsed])
 
-  // Close mobile sidebar when route changes
   useEffect(() => {
     if (isMobileOpen && onMobileClose) {
       onMobileClose()
@@ -61,229 +104,140 @@ export function Sidebar({ onOpenProfileModal, isMobileOpen = false, onMobileClos
     }
   }
 
-  const toggleSidebar = () => {
-    setIsCollapsed(!isCollapsed)
-  }
-
-  const handleNavClick = () => {
-    // Close mobile sidebar when navigating
-    if (onMobileClose) {
-      onMobileClose()
-    }
-  }
-  
-  const sidebarWidthClass = isCollapsed ? "w-20" : "w-64"
+  // บนมือถือเมนูกางเต็มเสมอ สถานะยุบใช้เฉพาะเดสก์ท็อป
+  const collapsed = isCollapsed && !isMobileOpen
   const CollapseIcon = isCollapsed ? ChevronsRight : ChevronsLeft
 
   const sidebarContent = (
-    <div className={cn(
-      "flex h-full flex-col bg-gray-900 border-r border-gray-800 transition-all duration-300 ease-in-out relative",
-      // Desktop: use collapse width, Mobile: always full width
-      "md:w-auto w-72"
-    )} style={{ width: isMobileOpen ? '18rem' : undefined }}>
-      
-      {/* Desktop collapse button - hidden on mobile */}
+    <div className="relative flex h-full w-72 flex-col border-r border-border bg-card transition-all duration-300 md:w-auto">
       <button
-        onClick={toggleSidebar}
-        className={cn(
-          "absolute top-6 z-20 group transition-all duration-300 ease-in-out",
-          "bg-gray-800 hover:bg-green-600 border-2 border-gray-700 hover:border-green-500",
-          "rounded-full p-2 shadow-lg hover:shadow-xl",
-          "text-gray-400 hover:text-white",
-          "transform hover:scale-110 active:scale-95",
-          "hidden md:block",
-          isCollapsed 
-            ? "-right-4 translate-x-0" 
-            : "-right-4 translate-x-0"
-        )}
-        style={{ 
-          right: '-1rem',
-          background: 'linear-gradient(135deg, #374151 0%, #4b5563 100%)',
-        }}
+        type="button"
+        onClick={() => setIsCollapsed(!isCollapsed)}
         aria-expanded={!isCollapsed}
         aria-label={isCollapsed ? "ขยายเมนู" : "ยุบเมนู"}
+        className="absolute -right-3 top-7 z-20 hidden h-6 w-6 items-center justify-center rounded-full border border-border bg-surface-raised text-muted-foreground shadow-raised transition-colors hover:border-primary hover:text-primary md:flex"
       >
-        <CollapseIcon className={cn(
-          "h-4 w-4 transition-transform duration-300 ease-in-out",
-          "group-hover:rotate-12"
-        )} />
-        <div className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-20 group-hover:animate-ping bg-green-400 transition-opacity duration-300"></div>
+        <CollapseIcon className="h-3.5 w-3.5" />
       </button>
 
-      {/* Mobile close button */}
       {isMobileOpen && (
         <button
+          type="button"
           onClick={onMobileClose}
-          className="absolute top-4 right-4 z-20 p-2 text-gray-400 hover:text-white md:hidden"
           aria-label="ปิดเมนู"
+          className="absolute right-3 top-4 z-20 rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:hidden"
         >
-          <X className="h-6 w-6" />
+          <X className="h-5 w-5" />
         </button>
       )}
 
-      {/* Logo */}
-      <div className="flex h-16 items-center px-4 border-b border-gray-800 relative">
-        <div className={cn(
-          "flex items-center transition-all duration-300",
-          isCollapsed && !isMobileOpen && "md:justify-center md:w-full"
-        )}>
-          <div className="relative">
-            <Building2 className="h-8 w-8 text-green-500 flex-shrink-0 transition-all duration-300 hover:text-green-400" />
-            <div className="absolute inset-0 h-8 w-8 text-green-500 opacity-50 blur-sm">
-              <Building2 className="h-8 w-8" />
+      <div className="flex h-16 items-center border-b border-border px-4">
+        <div className={cn("flex items-center gap-3", collapsed && "md:w-full md:justify-center md:gap-0")}>
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Building2 className="h-5 w-5" />
+          </span>
+          {!collapsed && (
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold tracking-tight text-foreground">CondoManager</p>
+              <p className="truncate text-[11px] text-muted-foreground">ระบบจัดการคอนโด</p>
             </div>
-          </div>
-          
-          <div className={cn(
-            "ml-3 transition-all duration-300 overflow-hidden",
-            isCollapsed && !isMobileOpen ? "md:w-0 md:opacity-0 w-auto opacity-100" : "w-auto opacity-100"
-          )}>
-            <span className="text-xl font-bold text-white whitespace-nowrap bg-gradient-to-r from-white to-green-300 bg-clip-text text-transparent">
-              CondoManager
-            </span>
-          </div>
+          )}
         </div>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 px-3 md:px-4 py-4 md:py-6 space-y-1 md:space-y-2 overflow-y-auto min-h-0">
+      <nav className="scrollbar-slim min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2.5 py-4">
         {navigation.map((item) => {
           const isActive = pathname === item.href
           return (
             <Link
               key={item.name}
               href={item.href}
-              onClick={handleNavClick}
+              onClick={onMobileClose}
+              title={collapsed ? item.name : undefined}
+              aria-current={isActive ? "page" : undefined}
               className={cn(
-                "relative flex items-center px-3 py-2.5 md:py-3 text-sm font-medium rounded-xl transition-all duration-300 group overflow-hidden",
-                isActive 
-                  ? "bg-gradient-to-r from-green-600 to-green-700 text-white shadow-lg shadow-green-600/25" 
-                  : "text-gray-300 hover:bg-gray-800 hover:text-white hover:shadow-md",
-                isCollapsed && !isMobileOpen ? "md:justify-center" : "",
-                isActive && "border border-green-500/50"
+                "group relative flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                isActive
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                collapsed && "md:justify-center",
               )}
             >
-              {!isActive && (
-                <div className="absolute inset-0 bg-gradient-to-r from-gray-800 to-gray-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+              {isActive && (
+                <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r-full bg-primary" />
               )}
-              
-              <div className="relative z-10 flex items-center">
-                <item.icon className={cn(
-                  "h-5 w-5 flex-shrink-0 transition-all duration-300",
-                  (!isCollapsed || isMobileOpen) && "mr-3",
-                  isActive && "drop-shadow-sm",
-                  "group-hover:scale-110"
-                )} />
-                
-                <span className={cn(
-                  "whitespace-nowrap transition-all duration-300 relative z-10",
-                  isCollapsed && !isMobileOpen
-                    ? "md:opacity-0 md:w-0 md:translate-x-4 opacity-100 w-auto translate-x-0" 
-                    : "opacity-100 w-auto translate-x-0"
-                )}>
-                  {item.name}
-                </span>
-              </div>
-
-              {/* Desktop tooltip when collapsed */}
-              {isCollapsed && !isMobileOpen && (
-                <div className={cn(
-                  "absolute left-full ml-6 px-3 py-2 text-sm text-white",
-                  "bg-gray-800 border border-gray-600 rounded-lg shadow-xl",
-                  "whitespace-nowrap z-50 pointer-events-none",
-                  "opacity-0 scale-95 translate-x-2 group-hover:opacity-100 group-hover:scale-100 group-hover:translate-x-0",
-                  "transition-all duration-200 ease-out",
-                  "hidden md:block"
-                )}>
-                  {item.name}
-                  <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1">
-                    <div className="w-2 h-2 bg-gray-800 border-l border-t border-gray-600 rotate-45"></div>
-                  </div>
-                </div>
-              )}
+              <item.icon className={cn("h-[18px] w-[18px] shrink-0", !collapsed && "mr-3")} />
+              {!collapsed && <span className="truncate whitespace-nowrap">{item.name}</span>}
             </Link>
           )
         })}
       </nav>
 
-      {/* User section - always at bottom */}
-      <div className="border-t border-gray-800 p-2 md:p-3 mt-auto shrink-0">
+      <div className="mt-auto shrink-0 space-y-1 border-t border-border p-2.5">
         <button
+          type="button"
           onClick={() => {
             onOpenProfileModal()
-            handleNavClick()
+            onMobileClose?.()
           }}
-          className={cn(
-            "flex items-center mb-2 transition-all duration-300 w-full rounded-lg p-2",
-            "hover:bg-gray-800 group cursor-pointer",
-            isCollapsed && !isMobileOpen && "md:justify-center"
-          )}
           title="ตั้งค่าโปรไฟล์"
+          className={cn(
+            "group flex w-full items-center rounded-lg p-2 transition-colors hover:bg-accent",
+            collapsed && "md:justify-center",
+          )}
         >
-          <div className="relative">
-            <div className="h-9 w-9 rounded-full bg-gradient-to-r from-green-600 to-green-700 flex items-center justify-center overflow-hidden flex-shrink-0 ring-2 ring-green-500/30 transition-all duration-300 group-hover:ring-green-500/60 relative">
+          <span className="relative shrink-0">
+            <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-primary/20 text-sm font-medium text-primary">
               {user?.profile_picture_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={user.profile_picture_url}
-                  alt="Profile"
+                  alt=""
                   className="h-full w-full object-cover"
                   loading="lazy"
                   decoding="async"
                 />
               ) : (
-                <span className="text-sm font-medium text-white">{user?.full_name?.charAt(0) || "U"}</span>
+                user?.full_name?.charAt(0) || "U"
               )}
-            </div>
-            <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-400 border-2 border-gray-900 rounded-full z-10"></div>
-          </div>
-          
-          <div className={cn(
-            "ml-2.5 flex-1 min-w-0 overflow-hidden transition-all duration-300 text-left",
-            isCollapsed && !isMobileOpen ? "md:w-0 md:opacity-0 w-auto opacity-100" : "w-auto opacity-100"
-          )}>
-            <p className="text-sm font-medium text-white whitespace-nowrap truncate leading-tight">
-              {user?.full_name}
-            </p>
-            <p className="text-xs text-gray-400 whitespace-nowrap truncate leading-tight">
-              {user?.email}
-            </p>
-          </div>
+            </span>
+            <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card bg-success" />
+          </span>
 
-          {(!isCollapsed || isMobileOpen) && (
-            <div className="ml-1 p-1.5 rounded-lg text-gray-400 group-hover:text-white transition-all duration-300">
-              <Settings className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" />
-            </div>
+          {!collapsed && (
+            <>
+              <span className="ml-2.5 min-w-0 flex-1 text-left">
+                <span className="block truncate text-sm font-medium leading-tight text-foreground">
+                  {user?.full_name}
+                </span>
+                <span className="block truncate text-xs leading-tight text-muted-foreground">{user?.email}</span>
+              </span>
+              <Settings className="ml-1 h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-300 group-hover:rotate-90" />
+            </>
           )}
         </button>
 
+        <ThemeToggle collapsed={collapsed} />
+
         <button
+          type="button"
           onClick={handleLogout}
           disabled={isLoggingOut}
           className={cn(
-            "flex items-center w-full px-3 py-2 text-sm rounded-lg transition-all duration-300 group",
-            isLoggingOut 
-              ? "bg-gray-700 text-gray-400 cursor-not-allowed" 
-              : "text-gray-400 hover:bg-red-900/40 hover:text-red-300",
-            isCollapsed && !isMobileOpen && "md:justify-center"
+            "flex w-full items-center rounded-lg px-3 py-2 text-sm transition-colors",
+            isLoggingOut
+              ? "cursor-not-allowed text-muted-foreground"
+              : "text-muted-foreground hover:bg-destructive-muted hover:text-destructive",
+            collapsed && "md:justify-center",
           )}
         >
           {isLoggingOut ? (
-            <Loader2 className={cn(
-              "h-4 w-4 animate-spin flex-shrink-0",
-              (!isCollapsed || isMobileOpen) && "mr-2"
-            )} />
+            <Loader2 className={cn("h-4 w-4 shrink-0 animate-spin", !collapsed && "mr-2")} />
           ) : (
-            <LogOut className={cn(
-              "h-4 w-4 flex-shrink-0 transition-transform duration-300 group-hover:-translate-x-0.5",
-              (!isCollapsed || isMobileOpen) && "mr-2"
-            )} />
+            <LogOut className={cn("h-4 w-4 shrink-0", !collapsed && "mr-2")} />
           )}
-          
-          {(!isCollapsed || isMobileOpen) && (
-            <span className="whitespace-nowrap text-xs">
-              {isLoggingOut ? "กำลังออก..." : "ออกจากระบบ"}
-            </span>
+          {!collapsed && (
+            <span className="whitespace-nowrap text-xs">{isLoggingOut ? "กำลังออก..." : "ออกจากระบบ"}</span>
           )}
         </button>
       </div>
@@ -292,20 +246,13 @@ export function Sidebar({ onOpenProfileModal, isMobileOpen = false, onMobileClos
 
   return (
     <>
-      {/* Desktop Sidebar */}
-      <div className={cn("hidden md:flex h-full transition-all duration-300", sidebarWidthClass)}>
+      <div className={cn("hidden h-full transition-all duration-300 md:flex", isCollapsed ? "w-20" : "w-64")}>
         {sidebarContent}
       </div>
 
-      {/* Mobile Sidebar Overlay */}
       {isMobileOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
-          {/* Backdrop */}
-          <div 
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={onMobileClose}
-          />
-          {/* Sidebar */}
+          <div className="absolute inset-0 bg-background/70 backdrop-blur-sm" onClick={onMobileClose} />
           <div className="absolute left-0 top-0 h-full w-72 animate-in slide-in-from-left duration-300">
             {sidebarContent}
           </div>
@@ -315,20 +262,22 @@ export function Sidebar({ onOpenProfileModal, isMobileOpen = false, onMobileClos
   )
 }
 
-// Mobile Header Component
 export function MobileHeader({ onMenuClick }: { onMenuClick: () => void }) {
   return (
-    <div className="md:hidden flex items-center justify-between px-4 py-3 bg-gray-900 border-b border-gray-800">
-      <div className="flex items-center gap-2">
-        <Building2 className="h-6 w-6 text-green-500" />
-        <span className="text-lg font-bold text-white">CondoManager</span>
+    <div className="flex items-center justify-between border-b border-border bg-card px-4 py-3 md:hidden">
+      <div className="flex items-center gap-2.5">
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <Building2 className="h-[18px] w-[18px]" />
+        </span>
+        <span className="text-base font-semibold tracking-tight text-foreground">CondoManager</span>
       </div>
       <button
+        type="button"
         onClick={onMenuClick}
-        className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
         aria-label="เปิดเมนู"
+        className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
       >
-        <Menu className="h-6 w-6" />
+        <Menu className="h-5 w-5" />
       </button>
     </div>
   )
